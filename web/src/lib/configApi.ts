@@ -82,6 +82,10 @@ export const configApi = {
   home: (botId: string) => req<{ editable: boolean; files: HomeFileInfo[] }>('GET', `/bots/${botId}/home`),
   saveHome: (botId: string, key: string, text: string) => req<{ ok: true }>('PUT', `/bots/${botId}/home/${key}`, { text }),
 
+  /** The YakkBot Android app's phone bridge. */
+  device: () => req<{ paired: boolean; reachable: boolean; info: Record<string, unknown> | null }>('GET', '/device'),
+  unpairDevice: () => req<{ paired: boolean }>('DELETE', '/device'),
+
   policies: () => req<{ policies: { tool: string; mode: string }[] }>('GET', '/policies'),
   deletePolicy: (tool: string) => req<{ ok: true }>('DELETE', `/policies/${encodeURIComponent(tool)}`),
 

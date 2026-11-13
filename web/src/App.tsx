@@ -13,6 +13,7 @@ import { SearchModal } from './components/modals/SearchModal';
 import { ConfigLayer } from './components/config/ConfigLayer';
 import { TasksView } from './components/config/TasksView';
 import { useConfigUI } from './configStore';
+import { pairAndroid } from './lib/android';
 
 function Shell() {
   const detailsOpen = useStore((s) => s.detailsOpen);
@@ -27,6 +28,8 @@ function Shell() {
     const st = useStore.getState();
     st.loadBots().catch(console.error);
     st.loadComputer().catch(console.error);
+    // Inside the Android app: connect its phone bridge to this server.
+    void pairAndroid();
     const stop = startEvents();
     // OAuth popups post back here; refresh connection-dependent views and the open transcript.
     const onMsg = (e: MessageEvent) => {

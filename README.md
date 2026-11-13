@@ -61,6 +61,34 @@ Termux's battery use to **Unrestricted**, and run `yakkbot boot` so it comes bac
 On Android 12+ also disable the phantom process killer once from a computer:
 `adb shell "settings put global settings_enable_monitor_phantom_procs false"`.
 
+### The Android app (optional, recommended)
+
+A small app that makes YakkBot feel native and lets the bots operate the phone itself:
+
+- **Starts everything for you.** Opening the app starts the server in Termux; so does a reboot.
+- **Full-screen chat** with a home-screen icon and a working Back button.
+- **Phone control.** With your permission, bots read the screen and tap, swipe and type in any
+  app, open apps, and read or clear notifications. This uses Android's accessibility and
+  notification-access services, which you switch on in Android's own settings.
+
+Download: https://github.com/deezi74/YakkBot/releases/latest/download/yakkbot.apk
+(or build it: `cd android && gradle assembleRelease`).
+
+1. Install Termux and run the install command above first. The installer also tells Termux to
+   accept commands from the app.
+2. Install the APK. Android asks you to allow installs from your browser or file manager.
+3. Open YakkBot. Tap **Allow** on "Let this app start YakkBot", then sign in.
+4. Under **Phone control**, turn on screen control and notification access.
+
+Android 13 and newer block accessibility for apps installed outside a store until you allow it:
+open **App info** for YakkBot, tap **⋮**, choose **Allow restricted settings**, then turn it on.
+
+What the app cannot do: Android gives no app the power to grant itself these switches, so the
+two settings toggles and the first Termux command are yours to do once. Bots ask before they first
+look at or touch the screen, and "Always allow" remembers your answer; take it back under
+Settings > Permissions. Screens that block capture (banking apps, password fields) stay blocked.
+Texts, calls, contacts, location and the camera go through Termux:API, not this app.
+
 ### Linux and Chromebook (Crostini)
 
 ```bash
@@ -175,6 +203,8 @@ npm run build && npm test    # end-to-end checks against a mock model server; no
 server/src/native/    the built-in engine: providers, model adapters, agent loop, device tools
 server/src/agent/     turns, approvals, the app's own tools (tasks, routines, bot-to-bot)
 server/src/channels/  Telegram
+server/src/device.ts  pairing with the Android app's phone bridge
+android/              the Android app (Java, no dependencies): chat shell, Termux launcher, phone bridge
 server/src/           API, MCP endpoint, engines, computer modes, VNC relay, voice
 web/src/              the app
 scripts/yakkbot.sh    the yakkbot command
@@ -184,8 +214,9 @@ docs/ARCHITECTURE.md  how it fits together
 
 ## Status and limits
 
-- Tested here: the server, both model protocols against a mock server, and the web app in a
-  phone-sized Chromium. **Not yet run on a real phone or against a real model provider**; expect to
+- Tested here: the server, both model protocols against a mock server, the web app in a
+  phone-sized Chromium, and the bots' side of phone control against a stand-in bridge. The Android
+  app compiles and is signed, but has not been run on a device. **Not yet run on a real phone or against a real model provider**; expect to
   shake out a few things on first install.
 - Voice, connected apps, Hermes and Orgo paths are Bot HQ's code, kept working by type but not
   exercised here.

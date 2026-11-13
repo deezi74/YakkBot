@@ -2,13 +2,30 @@
 //   node tests/smoke.mjs            starts the mock + a throwaway server, runs the checks, cleans up
 // Needs a built server (npm run build).
 import { spawn } from 'node:child_process';
+import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'yakk-smoke-'));
-const PORT = 18787, MOCK = 18799;
+const PORT = 18787, MOCK = 18799, BRIDGE = 18765;
+const BRIDGE_TOKEN = 'ab'.repeat(32);
+const bridgeCalls = [];
+// Stands in for the Android app's phone bridge.
+const fakeBridge = http.createServer((req, res) => {
+  let raw = '';
+  req.on('data', (c) => (raw += c));
+  req.on('end', () => {
+    const send = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
+    if (req.headers.authorization !== `Bearer ${BRIDGE_TOKEN}`) return send(401, { error: 'unauthorized' });
+    bridgeCalls.push({ path: req.url, body: JSON.parse(raw || '{}') });
+    if (req.url === '/status') return send(200, { ok: true, screenControl: true });
+    if (req.url === '/ui/dump') return send(200, { app: 'com.example', screen: { width: 1080, height: 2400 }, nodes: [{ text: 'Send', kind: 'Button', x: 900, y: 2200, tap: true }] });
+    if (req.url === '/ui/tap') return send(200, { ok: true, x: 900, y: 2200 });
+    return send(409, { error: 'nope' });
+  });
+});
 const base = `http://127.0.0.1:${PORT}`;
 const procs = [];
 const start = (args, env) => {
@@ -18,7 +35,7 @@ const start = (args, env) => {
   procs.push(p);
   return p;
 };
-const cleanup = () => { for (const p of procs) p.kill(); fs.rmSync(home, { recursive: true, force: true }); };
+const cleanup = () => { fakeBridge.close(); for (const p of procs) p.kill(); fs.rmSync(home, { recursive: true, force: true }); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let cookie = '';
@@ -106,6 +123,31 @@ async function run(wire) {
   check('the second bot answers on its own thread', lastAssistant(rs) === 'You said: ping', lastAssistant(rs));
   check('deleting a bot works', (await api('DELETE', `/bots/${second.id}`)).status === 200);
 
+  // The Android app's phone bridge: pair, then use it through the device tool (with an approval).
+  check('device tool is not offered before the app is paired', (await api('GET', '/device')).json.paired === false);
+  check('pairing rejects a bad token', (await api('POST', '/device/pair', { port: BRIDGE, token: 'short' })).status === 400);
+  const paired = (await api('POST', '/device/pair', { port: BRIDGE, token: BRIDGE_TOKEN, info: { device: 'Test Phone' } })).json;
+  check('the app pairs and its bridge answers', paired.paired === true && paired.reachable === true, JSON.stringify(paired));
+  await api('POST', `/bots/${bot.id}/messages`, { text: 'screen: read_screen' });
+  rs = await settle(bot.id, (r) => r.some((x) => x.kind === 'card' && x.body.card === 'approval' && x.body.status === 'pending'));
+  const see = rs.find((x) => x.kind === 'card' && x.body.card === 'approval' && x.body.status === 'pending');
+  check('reading the screen asks first', !!see && /see what is on your screen/.test(see.body.title), JSON.stringify(rs.slice(-4).map((r) => r.body)));
+  if (see) {
+    await api('POST', `/approvals/${see.body.approvalId}`, { decision: 'always' });
+    rs = await settle(bot.id, (r) => lastAssistant(r)?.startsWith('Tool said: App in front'));
+    check('the screen text reaches the bot', lastAssistant(rs) === 'Tool said: App in front: com.example. Screen 1080x2400.', lastAssistant(rs));
+  }
+  await api('POST', `/bots/${bot.id}/messages`, { text: 'screen: tap Send' });
+  rs = await settle(bot.id, (r) => r.some((x) => x.kind === 'card' && x.body.card === 'approval' && x.body.status === 'pending'));
+  const tapCard = rs.find((x) => x.kind === 'card' && x.body.card === 'approval' && x.body.status === 'pending');
+  check('tapping asks separately', !!tapCard && /tap and type/.test(tapCard.body.title), JSON.stringify(tapCard?.body));
+  if (tapCard) {
+    await api('POST', `/approvals/${tapCard.body.approvalId}`, { decision: 'allow' });
+    rs = await settle(bot.id, (r) => lastAssistant(r)?.startsWith('Tool said: Tapped'));
+    check('the tap reaches the phone bridge', bridgeCalls.some((c) => c.path === '/ui/tap' && c.body.text === 'Send'), JSON.stringify(bridgeCalls));
+  }
+  await api('DELETE', '/device');
+
   const mcp = await fetch(`${base}/mcp/${bot.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
   check('MCP endpoint refuses a caller without the token', mcp.status === 401);
 
@@ -114,6 +156,7 @@ async function run(wire) {
 }
 
 try {
+  await new Promise((r) => fakeBridge.listen(BRIDGE, '127.0.0.1', r));
   start([path.join(root, 'tests/mock-llm.mjs'), String(MOCK)], {});
   await sleep(500);
   await run('openai');

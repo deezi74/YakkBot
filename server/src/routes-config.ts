@@ -15,6 +15,7 @@ import { openTerminal } from './desk.js';
 import path from 'node:path';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
 import { MEMORY_LIMIT, USER_LIMIT, readHomeFile, writeHomeFile, type HomeFile } from './native/home.js';
+import { bridgeStatus, pair, unpair } from './device.js';
 import { PROVIDERS, listProviders, removeProviderKey, setProviderKey } from './native/providers.js';
 import { listMemories } from './engine-memory.js';
 import { idleConfig, viewerCount } from './idle.js';
@@ -26,7 +27,7 @@ import type { LibraryFile, Skill } from './types.js';
  */
 export const configApi = new Hono<AuthVars>();
 
-for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*']) configApi.use(p, requireUser);
+for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*']) configApi.use(p, requireUser);
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
@@ -385,3 +386,23 @@ configApi.delete('/providers/:id', async (c) => {
   removeProviderKey(c.req.param('id'));
   return c.json({ providers: await listProviders() });
 });
+
+// ---------- the YakkBot Android app (phone bridge) ----------
+
+configApi.get('/device', async (c) => c.json(await bridgeStatus()));
+
+/** The app, opened by the signed-in owner, hands over where its bridge listens and the token for it. */
+configApi.post('/device/pair', async (c) => {
+  // Pairing points the bots at a local port, so it is only accepted from this device itself.
+  const from = (c.env as any)?.incoming?.socket?.remoteAddress ?? '';
+  if (!/^(::1|127\.|::ffff:127\.)/.test(String(from))) return c.json({ error: 'Pairing only works from the phone itself.' }, 403);
+  const p = await c.req.json<{ port?: number; token?: string; info?: unknown }>().catch(() => ({} as any));
+  try {
+    pair(Number(p.port), String(p.token ?? ''), p.info);
+  } catch (e: any) {
+    return c.json({ error: String(e?.message ?? e) }, 400);
+  }
+  return c.json(await bridgeStatus());
+});
+
+configApi.delete('/device', (c) => { unpair(); return c.json({ paired: false, reachable: false, info: null }); });
