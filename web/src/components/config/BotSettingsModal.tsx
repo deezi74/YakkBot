@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AvatarColor, AvatarShape, Bot, Memory, Routine, Skill } from '@shared/types';
 import { BotAvatar, BotAvatarFor, PICKER_SHAPES } from '../../avatar/BotAvatar';
 import { COLOR_ORDER, botVars, palette } from '../../lib/colors';
-import { configApi, type BotSettingsBundle } from '../../lib/configApi';
+import { configApi, type BotSettingsBundle, type HomeFileInfo } from '../../lib/configApi';
 import { useConfigUI, useVersion, type BotSettingsTab } from '../../configStore';
 import { useStore } from '../../store';
 import { Icon } from '../Icon';
@@ -328,13 +328,12 @@ function MemoriesTab({ bot, data, onChange }: { bot: Bot; data: BotSettingsBundl
     setHidden((h) => new Set(h).add(m.id));
     try { await configApi.deleteMemory(m.id); onChange(); } catch { setHidden((h) => { const n = new Set(h); n.delete(m.id); return n; }); }
   };
-  const fill = data ? Math.min(100, Math.round((data.memory.historyChars / data.memory.compactAtChars) * 100)) : 0;
   return (
     <div className="cfg-page">
       <div className="cfg-page__head">
         <div>
           <div className="cfg-page__title">Memories</div>
-          <div className="cfg-page__sub">What {bot.name} remembers about you. It saves things when you share them, and picks up more on its own once a chat goes quiet.</div>
+          <div className="cfg-page__sub">What {bot.name} remembers. It saves notes as you work together; you can remove one here, or edit the files themselves below.</div>
         </div>
       </div>
       {(data?.memories.length ?? 0) > 6 && (
@@ -360,21 +359,73 @@ function MemoriesTab({ bot, data, onChange }: { bot: Bot; data: BotSettingsBundl
           ))}
         </div>
       )}
-      {data && (
-        <div className="cfg-meter" title="Older messages are summarized automatically when this fills up.">
-          <div className="cfg-meter__label"><span>Conversation memory</span><span>{fill}% full</span></div>
-          <div className="cfg-meter__track"><span style={{ width: `${Math.max(2, fill)}%` }} /></div>
-          <div className="cfg-field__hint">
-            When it fills up, older messages get summarized so {bot.name} can keep going.
-            {data.memory.lastCompaction ? ` Last summarized ${shortDate(data.memory.lastCompaction.created_at)}.` : ''}
-          </div>
-        </div>
-      )}
+      <HomeFiles bot={bot} onSaved={onChange} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
+
+/** The bot's soul (who it is) and its two memory files, as text you can edit. */
+function HomeFiles({ bot, onSaved }: { bot: Bot; onSaved: () => void }) {
+  const [files, setFiles] = useState<HomeFileInfo[] | null>(null);
+  const [editable, setEditable] = useState(true);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [open, setOpen] = useState<string | null>(null);
+  const [state, setState] = useState<Record<string, string>>({});
+  const version = useVersion(`memories:${bot.id}`);
+  useEffect(() => {
+    let alive = true;
+    configApi.home(bot.id).then((r) => { if (alive) { setFiles(r.files); setEditable(r.editable); } }).catch(() => { if (alive) setFiles([]); });
+    return () => { alive = false; };
+  }, [bot.id, version]);
+  if (!files?.length) return null;
+  const HINT: Record<string, string> = {
+    soul: `Who ${bot.name} is: character, voice, values. Read at the start of every conversation.`,
+    memory: `${bot.name}’s own notes. One entry per block; separate entries with a line holding only §.`,
+    user: `What ${bot.name} knows about you. Same format.`,
+  };
+  const save = async (f: HomeFileInfo) => {
+    setState((s) => ({ ...s, [f.key]: 'Saving…' }));
+    try {
+      await configApi.saveHome(bot.id, f.key, drafts[f.key] ?? f.text);
+      setFiles((fs) => fs?.map((x) => (x.key === f.key ? { ...x, text: drafts[f.key] ?? x.text } : x)) ?? null);
+      setDrafts((d) => { const n = { ...d }; delete n[f.key]; return n; });
+      setState((s) => ({ ...s, [f.key]: 'Saved. Takes effect in the next new conversation.' }));
+      onSaved();
+    } catch (e) { setState((s) => ({ ...s, [f.key]: (e as Error).message })); }
+  };
+  return (
+    <div className="cfg-homefiles">
+      <div className="cfg-page__title cfg-homefiles__title">Soul and memory files</div>
+      {files.map((f) => {
+        const text = drafts[f.key] ?? f.text;
+        const dirty = drafts[f.key] !== undefined && drafts[f.key] !== f.text;
+        return (
+          <div key={f.key} className="cfg-card cfg-homefile">
+            <button type="button" className="cfg-homefile__head" onClick={() => setOpen(open === f.key ? null : f.key)} aria-expanded={open === f.key}>
+              <span className="cfg-row__text">
+                <span className="cfg-row__title">{f.title}</span>
+                <span className="cfg-row__sub">{HINT[f.key]}</span>
+              </span>
+              <span className="cfg-homefile__count">{text.length}/{f.limit}</span>
+            </button>
+            {open === f.key && (
+              <div className="cfg-homefile__body">
+                <textarea className="text-input cfg-homefile__text" value={text} readOnly={!editable} spellCheck={false} rows={10}
+                  onChange={(e) => { setDrafts((d) => ({ ...d, [f.key]: e.target.value })); setState((s) => ({ ...s, [f.key]: '' })); }} aria-label={f.title} />
+                <div className="cfg-homefile__foot">
+                  <span className="cfg-field__hint">{state[f.key] || (editable ? '' : `${bot.name} is the computer’s own agent; edit this file in its Hermes home.`)}</span>
+                  {editable && <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!dirty || text.length > f.limit} onClick={() => save(f)}>Save</button>}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function RoutinesTab({ bot, routines }: { bot: Bot; routines: Routine[] | undefined }) {
   const [flash, setFlash] = useState<string | null>(null);

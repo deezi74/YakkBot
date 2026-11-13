@@ -5,7 +5,7 @@ import { BotAvatarFor } from '../../avatar/BotAvatar';
 import { configApi, type ComputerDetails } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
-import { useStore } from '../../store';
+import { useStore, useFeatures } from '../../store';
 import { computerStatusText } from '../DetailsPanel';
 import { Icon } from '../Icon';
 import { ToolkitLogo } from '../ToolkitLogo';
@@ -22,6 +22,8 @@ const SECTIONS: { id: AppSection; label: string }[] = [
 
 /** Full-window settings page, opened from the account menu. */
 export function AppSettings() {
+  const f = useFeatures();
+  const sections = SECTIONS.filter((s) => (s.id === 'computer' ? f.computer === 'orgo' : s.id === 'apps' ? f.apps : true));
   const section = useConfigUI((s) => s.appSettings);
   const close = useConfigUI((s) => s.closeAppSettings);
   const open = useConfigUI((s) => s.openAppSettings);
@@ -36,7 +38,7 @@ export function AppSettings() {
       <aside className="app-settings__nav">
         <button type="button" className="app-settings__back" onClick={close}><Glyph name="arrow_left" size={14} /> Back to Bots</button>
         <div className="app-settings__heading">Settings</div>
-        {SECTIONS.map((s) => (
+        {sections.map((s) => (
           <button key={s.id} type="button" className={`cfg-nav__item${section === s.id ? ' is-active' : ''}`} onClick={() => open(s.id)} aria-current={section === s.id || undefined}>
             {s.label}
           </button>

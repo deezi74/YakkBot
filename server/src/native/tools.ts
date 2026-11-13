@@ -86,9 +86,9 @@ const RISKY: [RegExp, string][] = [
 function shellGate(args: any): Gate | null {
   if (env.shellApproval === 'off') return null;
   const cmd = String(args?.command ?? '');
-  if (env.shellApproval === 'always') return { key: 'shell', title: 'Shell: run a command' };
+  if (env.shellApproval === 'always') return { key: 'SHELL_RUN_A_COMMAND', title: 'Shell: run a command' };
   const hit = RISKY.find(([re]) => re.test(cmd));
-  return hit ? { key: `shell:${hit[1]}`, title: `Shell: ${hit[1]}` } : null;
+  return hit ? { key: `SHELL_${hit[1].toUpperCase().replace(/\s+/g, '_')}`, title: `Shell: ${hit[1]}` } : null;
 }
 
 function runShell(command: string, cwd: string, timeoutSec: number, signal: AbortSignal): Promise<{ output: string; code: number; timedOut: boolean }> {
@@ -401,8 +401,8 @@ const PHONE: DeviceTool = {
   activity: 'on_its_computer',
   label: 'Using the phone',
   gate: (a) =>
-    PHONE_OUTWARD.has(a?.action) ? { key: `phone:${a.action}`, title: a.action === 'call' ? `Phone: call ${a.number ?? ''}` : `Phone: text ${a.number ?? ''}` }
-    : PHONE_READ_PRIVATE.has(a?.action) ? { key: `phone:${a.action}`, title: `Phone: read your ${String(a.action).replace('_list', '').replace('_', ' ')}` }
+    PHONE_OUTWARD.has(a?.action) ? { key: `PHONE_${String(a.action).toUpperCase()}`, title: a.action === 'call' ? `Phone: call ${a.number ?? ''}` : `Phone: text ${a.number ?? ''}` }
+    : PHONE_READ_PRIVATE.has(a?.action) ? { key: `PHONE_${String(a.action).toUpperCase()}`, title: `Phone: read your ${String(a.action).replace('_list', '').replace('_', ' ')}` }
     : null,
   impl: phone,
 };

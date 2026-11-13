@@ -4,9 +4,8 @@ import { BotAvatarFor } from '../avatar/BotAvatar';
 import { api, openPopup } from '../lib/api';
 import { botVars } from '../lib/colors';
 import { computerStatusText } from '../lib/computer';
-import { displayName, useSelectedBot, useStore } from '../store';
+import { displayName, useFeatures, useSelectedBot, useStore } from '../store';
 import { Icon } from './Icon';
-import { ToolkitLogo } from './ToolkitLogo';
 import { VoiceSettings } from './VoiceSettings';
 import { ComputerScreen, type ScreenMode } from './ComputerViewer';
 import { EngineSettings } from './EngineSettings';
@@ -53,6 +52,7 @@ export function DetailsPanel() {
   const viewerOpen = useStore((s) => s.viewerOpen);
   const set = useStore((s) => s.set);
   const [tab, setTab] = useState<'activity' | 'tasks' | 'library'>('activity');
+  const f = useFeatures();
   const [hideSuggested, setHideSuggested] = useState(() => { try { return localStorage.getItem('yakkbot.hideSuggested') === '1'; } catch { return false; } });
   if (!bot) return null;
 
@@ -73,10 +73,11 @@ export function DetailsPanel() {
         </button>
       </div>
       <div className="details__scroll">
-        {bot.kind === 'room' ? (
+        {bot.kind === 'room' || f.computer === 'none' ? (
           <div className="details__identity">
             <BotAvatarFor bot={bot} size={64} />
             <div className="details__name" title={displayName(bot)}>{displayName(bot)}</div>
+            {bot.kind !== 'room' && <div className="details__who-sub">{bot.model ?? (f.phone ? 'Lives on this phone' : 'Lives on this device')}</div>}
           </div>
         ) : (
           <div className="details__hero">
@@ -120,7 +121,7 @@ export function DetailsPanel() {
                 <MembersCard room={bot} />
               </section>
             )}
-            {bot.kind !== 'room' && !hideSuggested && (
+            {bot.kind !== 'room' && f.apps && !hideSuggested && (
               <section>
                 <div className="section-label section-label--row">
                   <span>Suggested</span>
@@ -128,7 +129,7 @@ export function DetailsPanel() {
                 </div>
                 <div className="panel-card">
                   <button type="button" className="panel-row panel-row--link" onClick={addSlack}>
-                    <span className="panel-row__glyph"><ToolkitLogo name="Slack" logo="/assets/icons/slack.svg" size={16} radius={4} /></span>
+                    <span className="panel-row__glyph"><Icon name="slack" size={14} opacity={0.66} /></span>
                     <span className="panel-row__title" style={{ flex: 1 }}>Add to Slack</span>
                     <Icon name="chev_right" size={12} opacity={0.56} />
                   </button>
@@ -141,10 +142,12 @@ export function DetailsPanel() {
                   <div className="section-label">Engine</div>
                   <EngineSettings bot={bot} />
                 </section>
-                <section>
-                  <div className="section-label">Voice chat</div>
-                  <VoiceSettings bot={bot} />
-                </section>
+                {f.voice && (
+                  <section>
+                    <div className="section-label">Voice chat</div>
+                    <VoiceSettings bot={bot} />
+                  </section>
+                )}
               </>
             )}
           </div>

@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Bot } from '@shared/types';
 import { api } from '../lib/api';
-import { displayName, useStore } from '../store';
+import { displayName, useFeatures, useStore } from '../store';
 import { Icon } from './Icon';
 import { Menu } from './Menu';
 import { endCall, isCallActive, startCall, useVoice } from '../voice/call';
 import { useDictation } from '../voice/dictation';
+import { useBrowserDictation } from '../voice/browserDictation';
 
 const MAX_H = 200;
 const drafts = new Map<string, string>();
@@ -71,7 +72,12 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
       return before + pre + t + post + after;
     });
   };
-  const dictation = useDictation(insertText, setError, bot.voiceLanguage);
+  const f = useFeatures();
+  // With an xAI key the server transcribes; without one the browser's own speech recognition is used.
+  const serverDictation = useDictation(insertText, setError, bot.voiceLanguage);
+  const browserDictation = useBrowserDictation(insertText, setError, bot.voiceLanguage);
+  const dictation = f.voice ? serverDictation : browserDictation;
+  const canDictate = f.voice || browserDictation.supported;
   const inCall = useVoice((s) => isCallActive(s) && s.botId === bot.id);
 
   const hasText = text.trim().length > 0;
@@ -92,7 +98,7 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
                 onClose={() => setMenu(false)}
                 items={[
                   { label: 'New conversation', onSelect: fresh },
-                  { label: 'Connect apps', onSelect: () => setModal('apps') },
+                  ...(f.apps ? [{ label: 'Connect apps', onSelect: () => setModal('apps') }] : []),
                 ]}
               />
             )}
@@ -111,7 +117,7 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
           />
         </div>
         <div className="composer__right">
-          <button
+          {canDictate && <button
             type="button"
             className={`composer__btn${dictation.state === 'recording' ? ' is-recording' : dictation.state === 'transcribing' ? ' is-transcribing' : ''}`}
             aria-label={dictation.state === 'recording' ? 'Stop dictation' : 'Dictate'}
@@ -124,7 +130,7 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
             onContextMenu={(e) => e.preventDefault()}
           >
             <Icon name="mic" opacity={0.56} />
-          </button>
+          </button>}
           {inCall && !hasText ? (
             <button type="button" className="composer__cta is-in-call" onClick={endCall} aria-label="End voice call" title="End voice call">
               <Icon name="voice_a" size={16} />
@@ -137,12 +143,12 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
             <button
               type="button"
               className="composer__cta"
-              onClick={hasText ? send : () => startCall(bot.id)}
-              disabled={hasText && sending}
-              aria-label={hasText ? 'Send' : `Start voice chat with ${bot.name}`}
-              title={hasText ? 'Send (Enter)' : 'Start voice chat'}
+              onClick={hasText || !f.voice ? send : () => startCall(bot.id)}
+              disabled={hasText ? sending : !f.voice}
+              aria-label={hasText || !f.voice ? 'Send' : `Start voice chat with ${bot.name}`}
+              title={hasText || !f.voice ? 'Send (Enter)' : 'Start voice chat'}
             >
-              <Icon name={hasText ? 'arrow_up' : 'voice_a'} size={16} />
+              <Icon name={hasText || !f.voice ? 'arrow_up' : 'voice_a'} size={16} />
             </button>
           )}
         </div>

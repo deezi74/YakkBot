@@ -1,20 +1,14 @@
 import type { AvatarColor, AvatarShape, Bot } from '@shared/types';
 import { palette } from '../lib/colors';
 import { Icon } from '../components/Icon';
-import { SHAPES, type ShapeDef } from './shapes.gen';
-
-/** Shapes without an exported SVG fall back to the closest silhouette we have. */
-const FALLBACK: Partial<Record<AvatarShape, string>> = {
-  bean: 'teardrop', squircle: 'square', capsule: 'tablet', cylinder: 'tablet', gem: 'hex', crystal: 'hex',
-  shield: 'house', dome: 'house', arch: 'house', leaf: 'teardrop',
-};
+import { SHAPES, type ShapeDef } from './shapes';
 
 export function shapeDef(shape: AvatarShape | string): ShapeDef {
-  return SHAPES[shape] ?? SHAPES[FALLBACK[shape as AvatarShape] ?? 'blob'] ?? SHAPES.blob;
+  return SHAPES[shape] ?? SHAPES.blob;
 }
 
-/** Shapes offered in the Create New Bot picker, in the design's order (rows of 5/5/3). */
-export const PICKER_SHAPES: AvatarShape[] = ['blob', 'cloud', 'square', 'sparkle', 'clover', 'heart', 'flower', 'teardrop', 'tablet', 'wedge', 'house', 'star', 'hex'];
+/** Shapes offered in the Create New Bot picker. */
+export const PICKER_SHAPES: AvatarShape[] = ['blob', 'squircle', 'cloud', 'hex', 'star', 'heart', 'flower', 'sparkle', 'shield', 'teardrop', 'tablet', 'gem', 'house', 'clover', 'egg'];
 
 interface Props {
   shape: AvatarShape | string;

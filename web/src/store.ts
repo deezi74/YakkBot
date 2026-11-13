@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Bot, ComputerState, LiveState, Routine, Row, ServerEvent, User } from '@shared/types';
-import { api } from './lib/api';
+import { api, type Features } from './lib/api';
 
 export type ModalKind = 'create' | 'search' | 'apps' | 'group' | null;
 
@@ -9,6 +9,8 @@ interface Transcript { generation: number; bySeq: Record<number, Row>; loaded: b
 interface State {
   user: User | null;
   devLogin: boolean;
+  /** What this install has switched on (voice, connected apps, a desktop...). */
+  features: Features | null;
   authChecked: boolean;
 
   bots: Bot[];
@@ -29,10 +31,12 @@ interface State {
   viewerMode: 'watch' | 'control';
   /** One line shown under the large computer view while the person is driving (e.g. a sign-in to finish). */
   viewerHint: string | null;
+  /** Narrow screens show one pane at a time: the list of bots, or the open chat. */
+  mobilePane: 'list' | 'chat';
 
   checkAuth(): Promise<void>;
   loadBots(): Promise<void>;
-  selectBot(id: string): void;
+  selectBot(id: string, open?: boolean): void;
   loadRows(id: string): Promise<void>;
   loadRoutines(id: string): Promise<void>;
   loadComputer(): Promise<void>;
@@ -51,6 +55,7 @@ const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } ca
 export const useStore = create<State>((set, get) => ({
   user: null,
   devLogin: false,
+  features: null,
   authChecked: false,
   bots: [],
   live: {},
@@ -60,17 +65,19 @@ export const useStore = create<State>((set, get) => ({
   computer: null,
   connectionsVersion: 0,
   sseConnected: false,
-  detailsOpen: lsGet(LS_DETAILS) !== '0',
+  // On a phone the details panel covers the chat, so it starts closed there.
+  detailsOpen: lsGet(LS_DETAILS) !== '0' && !(typeof window !== 'undefined' && window.matchMedia?.('(max-width: 760px)').matches),
   sidebarCollapsed: lsGet(LS_SIDEBAR) === '1',
   modal: null,
   viewerOpen: false,
   viewerMode: 'watch',
   viewerHint: null,
+  mobilePane: 'list',
 
   async checkAuth() {
     try {
-      const { user, devLogin } = await api.me();
-      set({ user, devLogin, authChecked: true });
+      const { user, devLogin, features } = await api.me();
+      set({ user, devLogin, features: features ?? null, authChecked: true });
     } catch {
       set({ user: null, authChecked: true });
     }
@@ -84,12 +91,13 @@ export const useStore = create<State>((set, get) => ({
     const selectedBotId = sel && bots.some((b) => b.id === sel) ? sel : (bots.find((b) => b.isPrimary) ?? bots[0])?.id ?? null;
     set({ bots, live: liveMap });
     if (selectedBotId !== get().selectedBotId || !get().transcripts[selectedBotId ?? '']) {
-      if (selectedBotId) get().selectBot(selectedBotId);
+      // Restoring the last open bot on load is not a tap: a phone still starts on the list.
+      if (selectedBotId) get().selectBot(selectedBotId, false);
     }
   },
 
-  selectBot(id) {
-    set({ selectedBotId: id });
+  selectBot(id, open = true) {
+    set(open ? { selectedBotId: id, mobilePane: 'chat' } : { selectedBotId: id });
     lsSet(LS_SELECTED, id);
     const t = get().transcripts[id];
     if (!t?.loaded) get().loadRows(id).catch(console.error);
@@ -199,3 +207,7 @@ export const displayName = (b: Pick<Bot, 'name' | 'label'>) => (b.label ? `${b.n
 export function useSelectedBot(): Bot | undefined {
   return useStore((s) => s.bots.find((b) => b.id === s.selectedBotId));
 }
+
+const NONE: Features = { engine: 'native', computer: 'none', apps: false, xSearch: false, voice: false, googleLogin: false, passwordLogin: false, devLogin: false, phone: false, telegram: false };
+/** What this install has switched on. Everything reads as off until the server has said. */
+export const useFeatures = (): Features => useStore((s) => s.features) ?? NONE;

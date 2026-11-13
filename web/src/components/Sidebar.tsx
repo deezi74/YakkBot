@@ -3,25 +3,17 @@ import { useConfigUI } from '../configStore';
 import { TasksIsland } from './config/TasksView';
 import type { Bot } from '@shared/types';
 import { BotAvatarFor } from '../avatar/BotAvatar';
-import { displayName, useStore } from '../store';
+import { displayName, useFeatures, useStore } from '../store';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
 import { Menu } from './Menu';
+import { Glyph } from './config/glyphs';
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?';
 }
 
-export function TrafficLights() {
-  return (
-    <div className="traffic-lights" aria-hidden>
-      <span style={{ background: '#FF5F57' }} />
-      <span style={{ background: '#FEBC2E' }} />
-      <span style={{ background: '#28C840' }} />
-    </div>
-  );
-}
 
 function previewFor(bot: Bot, running: boolean, awaiting: string | null) {
   if (awaiting) return `Waiting for you: ${awaiting}`;
@@ -60,6 +52,7 @@ export function Sidebar() {
   const selectBot = useCallback((id: string) => { useConfigUI.getState().setView('chat'); storeSelectBot(id); }, [storeSelectBot]);
   const setModal = useStore((s) => s.setModal);
   const [accountMenu, setAccountMenu] = useState(false);
+  const f = useFeatures();
   const logout = async () => { await api.logout().catch(() => {}); location.reload(); };
 
   const primary = bots.find((b) => b.isPrimary);
@@ -68,7 +61,7 @@ export function Sidebar() {
   return (
     <aside className={`sidebar${collapsed ? ' is-collapsed' : ''}`}>
       <div className="sidebar__titlebar">
-        <TrafficLights />
+        <span className="sidebar__brand">YakkBot</span>
         <div className="sidebar__controls">
           <button type="button" className="icon-btn icon-btn--plain" onClick={() => set({ sidebarCollapsed: !collapsed })} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title="Toggle sidebar (⌘B)">
             <Icon name="sidebar" opacity={0.66} />
@@ -135,7 +128,7 @@ export function Sidebar() {
                 onClose={() => setAccountMenu(false)}
                 items={[
                   { label: 'Settings', hint: '⌘,', onSelect: () => useConfigUI.getState().openAppSettings() },
-                  { label: 'Connect apps', onSelect: () => setModal('apps') },
+                  ...(f.apps ? [{ label: 'Connect apps', onSelect: () => setModal('apps') }] : []),
                   { label: 'Log out', danger: true, onSelect: logout },
                 ]}
               >
@@ -144,9 +137,15 @@ export function Sidebar() {
             )}
           </div>
         )}
-        <button type="button" className="icon-btn icon-btn--bordered" onClick={() => setModal('apps')} aria-label="Connect apps" title="Connect apps">
-          <Icon name="apps" />
-        </button>
+        {f.apps ? (
+          <button type="button" className="icon-btn icon-btn--bordered" onClick={() => setModal('apps')} aria-label="Connect apps" title="Connect apps">
+            <Icon name="apps" />
+          </button>
+        ) : (
+          <button type="button" className="icon-btn icon-btn--bordered" onClick={() => useConfigUI.getState().openAppSettings()} aria-label="Settings" title="Settings">
+            <Glyph name="gear" size={16} opacity={0.7} />
+          </button>
+        )}
       </div>
     </aside>
   );

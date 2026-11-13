@@ -1,4 +1,4 @@
-import type { Bot, ComputerState, EngineInfo, LibraryFile, Memory, Routine, Skill, Task, Toolkit } from '@shared/types';
+import type { Bot, ComputerState, EngineInfo, EngineProvider, LibraryFile, Memory, Routine, Skill, Task, Toolkit } from '@shared/types';
 import { ApiError } from './api';
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -31,6 +31,8 @@ export interface ComputerDetails {
   screens: { botId: string; screenId: string; lastUsedAt: number }[];
   hibernation: { idleMinutes: number; viewers: number; dryRun: boolean };
 }
+
+export interface HomeFileInfo { key: 'soul' | 'memory' | 'user'; title: string; limit: number; text: string }
 
 export type BotPatch = Partial<Pick<Bot, 'name' | 'label' | 'description' | 'instructions' | 'avatarShape' | 'avatarColor' | 'effort' | 'mode'>>;
 
@@ -71,6 +73,14 @@ export const configApi = {
   restartEngine: (botId: string) => req<{ engine: EngineInfo }>('POST', `/bots/${botId}/engine/restart`),
   /** Stops the private screen the agent runs for itself, so its computer work shows on the screen in the app. */
   stopOwnScreen: (botId: string) => req<{ engine: EngineInfo }>('POST', `/bots/${botId}/engine/screen/stop`),
+
+  /** Built-in engine: model keys are kept on the device and shared by every bot. */
+  setProvider: (id: string, p: { apiKey?: string | null; baseUrl?: string | null; defaultModel?: string | null }) => req<{ providers: EngineProvider[] }>('PUT', `/providers/${id}`, p),
+  removeProvider: (id: string) => req<{ providers: EngineProvider[] }>('DELETE', `/providers/${id}`),
+
+  /** The bot's soul and memory files, as text. */
+  home: (botId: string) => req<{ editable: boolean; files: HomeFileInfo[] }>('GET', `/bots/${botId}/home`),
+  saveHome: (botId: string, key: string, text: string) => req<{ ok: true }>('PUT', `/bots/${botId}/home/${key}`, { text }),
 
   policies: () => req<{ policies: { tool: string; mode: string }[] }>('GET', '/policies'),
   deletePolicy: (tool: string) => req<{ ok: true }>('DELETE', `/policies/${encodeURIComponent(tool)}`),

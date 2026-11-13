@@ -1,10 +1,14 @@
 import type { CSSProperties } from 'react';
+import {
+  ArrowDown, AudioLines, Check, ChevronDown, ChevronRight, Circle, Clock, Copy, File, Hash, LayoutGrid, MessageCircle, Mic,
+  PanelLeft, Paperclip, Pencil, Phone, Plus, Save, Search, Share, Star, X, type LucideIcon,
+} from 'lucide-react';
 
 export type IconName =
   | 'apps' | 'arrow_down' | 'chat_filled' | 'check' | 'chev_down' | 'chev_right' | 'clock' | 'close'
   | 'composer_plus' | 'copy' | 'edit' | 'file' | 'mic' | 'paperclip' | 'plus' | 'record' | 'save'
   | 'search' | 'share' | 'sidebar' | 'slack' | 'star' | 'voice_a' | 'voice_b'
-  // inline extras not in the icon font export
+  // drawn inline
   | 'arrow_up' | 'stop' | 'more' | 'monitor' | 'refresh'
   // inline outline glyphs
   | 'eye' | 'pointer' | 'expand' | 'shrink';
@@ -27,7 +31,17 @@ const OUTLINE: Partial<Record<IconName, string>> = {
 
 interface Props { name: IconName; size?: number; opacity?: number; className?: string; style?: CSSProperties; color?: string }
 
-/** Single-color glyph from /assets/icons drawn as a CSS mask so it takes `currentColor`. */
+/** Named glyphs from Lucide (ISC). */
+const LUCIDE: Partial<Record<IconName, LucideIcon>> = {
+  apps: LayoutGrid, arrow_down: ArrowDown, chat_filled: MessageCircle, check: Check, chev_down: ChevronDown, chev_right: ChevronRight,
+  clock: Clock, close: X, composer_plus: Plus, copy: Copy, edit: Pencil, file: File, mic: Mic, paperclip: Paperclip, plus: Plus,
+  record: Circle, save: Save, search: Search, share: Share, sidebar: PanelLeft, slack: Hash, star: Star, voice_a: AudioLines, voice_b: Phone,
+};
+const FILLED = new Set<IconName>(['star', 'record', 'chat_filled']);
+
+interface Props { name: IconName; size?: number; opacity?: number; className?: string; style?: CSSProperties; color?: string }
+
+/** A single-colour glyph that takes `currentColor`. */
 export function Icon({ name, size = 16, opacity, className, style, color }: Props) {
   const inline = INLINE[name];
   if (inline) {
@@ -45,16 +59,6 @@ export function Icon({ name, size = 16, opacity, className, style, color }: Prop
       </svg>
     );
   }
-  const url = `url(/assets/icons/${name}.svg)`;
-  return (
-    <span
-      aria-hidden
-      className={className}
-      style={{
-        display: 'inline-block', flexShrink: 0, width: size, height: size, opacity, color,
-        backgroundColor: 'currentColor', WebkitMask: `${url} center / 100% 100% no-repeat`, mask: `${url} center / 100% 100% no-repeat`,
-        ...style,
-      }}
-    />
-  );
+  const L = LUCIDE[name] ?? Circle;
+  return <L className={className} size={size} strokeWidth={2} aria-hidden fill={FILLED.has(name) ? 'currentColor' : 'none'} style={{ opacity, color, flexShrink: 0, ...style }} />;
 }

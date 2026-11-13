@@ -21,6 +21,7 @@ function Shell() {
   const collapsed = useStore((s) => s.sidebarCollapsed);
   const hasBot = useStore((s) => !!s.selectedBotId);
   const view = useConfigUI((s) => s.view);
+  const pane = useStore((s) => s.mobilePane);
 
   useEffect(() => {
     const st = useStore.getState();
@@ -55,7 +56,7 @@ function Shell() {
   }, []);
 
   return (
-    <div className={`app${collapsed ? ' is-sidebar-collapsed' : ''}${detailsOpen && hasBot && view === 'chat' ? ' has-details' : ''}`}>
+    <div className={`app is-pane-${view === 'tasks' ? 'chat' : pane}${collapsed ? ' is-sidebar-collapsed' : ''}${detailsOpen && hasBot && view === 'chat' ? ' has-details' : ''}`}>
       <Sidebar />
       {view === 'tasks' ? <TasksView /> : <ChatView />}
       {detailsOpen && hasBot && view === 'chat' && <DetailsPanel />}

@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { Icon } from './Icon';
 
 const KIND: Record<EngineProvider['kind'], string> = { subscription: 'Subscription', api_key: 'API key' };
+const connLabel = (p: EngineProvider) => (p.connected ? (p.keyless ? 'Local server' : p.fromEnv ? 'Key from the server’s settings' : 'Connected') : p.keyless ? 'Not set up' : 'Needs a key');
 const STATUS: Record<EngineInfo['status'], string> = { ready: 'ready', starting: 'starting', stopped: 'stopped', error: 'error' };
 
 /** Connected providers first; otherwise the server's order. */
@@ -24,7 +25,10 @@ export function EngineSettings({ bot }: { bot: Bot }) {
   const [phase, setPhase] = useState<'loading' | 'ok' | 'unavailable'>('loading');
   const [provider, setProvider] = useState('');
   const [model, setModel] = useState('');
-  const [busy, setBusy] = useState<'save' | 'signin' | 'restart' | 'screen' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'signin' | 'restart' | 'screen' | 'key' | null>(null);
+  const [keyDraft, setKeyDraft] = useState('');
+  const [urlDraft, setUrlDraft] = useState('');
+  const [editKey, setEditKey] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const dirty = useRef(false);
@@ -85,13 +89,17 @@ export function EngineSettings({ bot }: { bot: Bot }) {
   const suggestions = selected?.models ?? [];
   const wantProvider = provider && provider !== (engine.provider ?? '') ? provider : undefined;
   const wantModel = model.trim() && model.trim() !== (engine.model ?? '') ? model.trim() : undefined;
-  const changed = !!wantProvider || !!wantModel;
+  const changed = (!!wantProvider && (selected?.connected ?? true)) || !!wantModel;
   const openSubscriptions = providers.filter((p) => p.kind === 'subscription' && !p.connected);
   const signInTo = selected && selected.kind === 'subscription' && !selected.connected ? selected : null;
   const listId = `engine-models-${botId}`;
 
+  const native = engine.kind === 'native';
+  const needsSetup = native && !!selected && (!selected.connected || editKey);
+
   const pickProvider = (id: string) => {
-    dirty.current = true; setNote(null); setProvider(id);
+    dirty.current = true; setNote(null); setProvider(id); setKeyDraft(''); setEditKey(false);
+    setUrlDraft(providers.find((p) => p.id === id)?.baseUrl ?? '');
     const next = providers.find((p) => p.id === id);
     // A model from another provider will not work here, so start from this provider's first suggestion.
     if (next?.models.length && !next.models.includes(model.trim())) setModel(next.models[0]);
@@ -102,6 +110,27 @@ export function EngineSettings({ bot }: { bot: Bot }) {
     setBusy('save'); setNote(null);
     try { const r = await configApi.setEngine(botId, { ...(wantProvider ? { provider: wantProvider } : {}), ...(wantModel ? { model: wantModel } : {}) }); dirty.current = false; apply(r.engine); }
     catch (e) { setNote(`Couldn’t save: ${(e as Error).message || 'the engine did not answer'}`); }
+    finally { setBusy(null); }
+  };
+
+  /** Built-in engine: save this provider's key (kept on the device, shared by all bots), then use it for this bot. */
+  const saveKey = async () => {
+    if (!selected || busy) return;
+    if (!selected.keyless && !keyDraft.trim() && !selected.connected) { setNote('Paste the API key first.'); return; }
+    if (selected.needsBaseUrl && !urlDraft.trim() && !selected.baseUrl) { setNote('Enter the server address first.'); return; }
+    setBusy('key'); setNote(null);
+    try {
+      await configApi.setProvider(selected.id, { ...(keyDraft.trim() ? { apiKey: keyDraft.trim() } : {}), ...(selected.needsBaseUrl ? { baseUrl: urlDraft.trim() || selected.baseUrl || '' } : {}) });
+      const r = await configApi.setEngine(botId, { provider: selected.id, model: model.trim() || null });
+      dirty.current = false; setKeyDraft(''); setEditKey(false); apply(r.engine);
+    } catch (e) { setNote(`Couldn’t save: ${(e as Error).message}`); }
+    finally { setBusy(null); }
+  };
+  const forgetKey = async () => {
+    if (!selected || busy) return;
+    setBusy('key'); setNote(null);
+    try { await configApi.removeProvider(selected.id); setEditKey(false); load(true); }
+    catch (e) { setNote(`Couldn’t remove: ${(e as Error).message}`); }
     finally { setBusy(null); }
   };
 
@@ -142,14 +171,35 @@ export function EngineSettings({ bot }: { bot: Bot }) {
           <Icon name="chev_down" size={10} opacity={0.66} />
           <select aria-label="Provider" value={provider} onChange={(e) => pickProvider(e.target.value)}>
             {!selected && <option value={provider}>{provider || 'Default'}</option>}
-            {providers.map((p) => <option key={p.id} value={p.id}>{p.name} · {KIND[p.kind]} · {p.connected ? 'Connected' : 'Not connected'}</option>)}
+            {providers.map((p) => <option key={p.id} value={p.id}>{native ? `${p.name} · ${connLabel(p)}` : `${p.name} · ${KIND[p.kind]} · ${p.connected ? 'Connected' : 'Not connected'}`}</option>)}
           </select>
         </span>
       </div>
       {selected && (
         <div className={`engine__conn${selected.connected ? ' is-on' : ''}`}>
           <i aria-hidden />
-          <span>{selected.connected ? 'Connected' : 'Not connected'} · {KIND[selected.kind]}</span>
+          <span>{native ? connLabel(selected) : `${selected.connected ? 'Connected' : 'Not connected'} · ${KIND[selected.kind]}`}</span>
+          {native && selected.connected && !selected.fromEnv && !editKey && (
+            <button type="button" className="link-btn link-btn--small engine__keylink" onClick={() => { setEditKey(true); setUrlDraft(selected.baseUrl ?? ''); }}>Change</button>
+          )}
+        </div>
+      )}
+      {needsSetup && selected && (
+        <div className="engine__key">
+          {selected.needsBaseUrl && (
+            <input className="engine__model engine__keyinput" value={urlDraft} spellCheck={false} autoComplete="off" inputMode="url"
+              placeholder={selected.id === 'ollama' ? 'http://127.0.0.1:11434/v1' : 'https://your-server/v1'} aria-label="Server address"
+              onChange={(e) => { setNote(null); setUrlDraft(e.target.value); }} />
+          )}
+          <input className="engine__model engine__keyinput" type="password" value={keyDraft} spellCheck={false} autoComplete="off"
+            placeholder={selected.keyless ? 'API key (optional)' : `API key${selected.keyHint ? `  ${selected.keyHint}` : ''}`} aria-label="API key"
+            onChange={(e) => { setNote(null); setKeyDraft(e.target.value); }} onKeyDown={(e) => { if (e.key === 'Enter') saveKey(); }} />
+          <div className="engine__actions">
+            <button type="button" className="btn btn--sm btn--bot" onClick={saveKey} disabled={busy === 'key'}>{busy === 'key' ? 'Saving…' : selected.connected ? 'Save' : 'Connect'}</button>
+            {editKey && <button type="button" className="link-btn link-btn--small" onClick={forgetKey} disabled={busy === 'key'}>Remove key</button>}
+            {editKey && <button type="button" className="link-btn link-btn--small" onClick={() => setEditKey(false)}>Cancel</button>}
+          </div>
+          <div className="engine__hint">Kept on this device and used by all your bots.</div>
         </div>
       )}
       <div className="panel-row panel-row--setting">
@@ -166,7 +216,7 @@ export function EngineSettings({ bot }: { bot: Bot }) {
         <button type="button" className="btn btn--sm btn--bot" onClick={save} disabled={!changed || busy === 'save'}>{busy === 'save' ? 'Saving…' : 'Save'}</button>
         {changed && <button type="button" className="link-btn link-btn--small" onClick={() => { dirty.current = false; setNote(null); setProvider(engine.provider ?? ''); setModel(engine.model ?? ''); }}>Undo</button>}
       </div>
-      {(signInTo || openSubscriptions.length > 0) && (
+      {!native && (signInTo || openSubscriptions.length > 0) && (
         <button type="button" className="panel-row panel-row--action engine__signin" onClick={signIn} disabled={busy === 'signin'}>
           <Icon name="monitor" size={14} opacity={0.56} />
           {busy === 'signin' ? 'Opening sign-in…' : signInTo ? `Sign in to ${signInTo.name}…` : 'Sign in to a subscription…'}
@@ -182,13 +232,13 @@ export function EngineSettings({ bot }: { bot: Bot }) {
       <div className="engine__meta">
         <span className={`engine__state is-${engine.status}`} title={engine.version ? `Hermes ${engine.version}` : undefined}>
           <i aria-hidden />
-          Hermes · profile {engine.profile} · {STATUS[engine.status] ?? engine.status}
+          {native ? `Built-in engine · ${engine.status === 'ready' ? 'ready' : 'needs a model'}` : `Hermes · profile ${engine.profile} · ${STATUS[engine.status] ?? engine.status}`}
         </span>
-        {(engine.status === 'error' || engine.status === 'stopped') && (
+        {!native && (engine.status === 'error' || engine.status === 'stopped') && (
           <button type="button" className="link-btn link-btn--small" onClick={restart} disabled={busy === 'restart'}>{busy === 'restart' ? 'Restarting…' : 'Restart agent'}</button>
         )}
       </div>
-      {engine.status === 'error' && engine.error && <div className="engine__error">{engine.error}</div>}
+      {engine.status === 'error' && engine.error && !needsSetup && <div className="engine__error">{engine.error}</div>}
     </div>
   );
 }
