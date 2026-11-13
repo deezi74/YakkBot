@@ -25,7 +25,8 @@ an add-on.
 
 - **Chat that shows the work.** While a bot works you see what it is doing and each step it took.
 - **A built-in engine.** No Hermes, no cloud VM. Claude (Anthropic API), OpenAI, OpenRouter, Grok,
-  Gemini, Groq, a local Ollama, or any OpenAI-compatible endpoint. Paste a key in the app.
+  Gemini, Groq, a local Ollama, any OpenAI-compatible endpoint, or GGUF models downloaded to the
+  phone and run offline in the app.
 - **The phone is the bot's computer.** Shell, files, web search and fetch, and through Termux:API:
   notifications, clipboard, location, SMS, calls, contacts, camera, text-to-speech.
 - **Approvals.** Destructive or outward-facing shell commands, texts and calls, and reads of private
@@ -59,6 +60,8 @@ What the app gives the bots, with your permission (they still ask before each ki
 - **Location, notifications, clipboard, speech, flashlight, volume, maps, sharing.**
 - **Screen control:** read the screen, tap, swipe and type in any app, open apps, read and clear notifications. This uses Android's accessibility and notification-access services, which you switch on in Android's own settings. On Android 13 and newer, open **App info** for YakkBot, tap **⋮**, choose **Allow restricted settings**, then turn it on.
 - **A Linux computer:** shell, files, Python, Node and git inside the app (`apk add` for more).
+- **A computer screen, like Dots:** open a bot's details and tap **Install** on "Give it a computer" (about 600 MB). The bots get a desktop with Chromium; you watch it live in the chat and can take over the mouse and keyboard.
+- **Models on the phone (offline, no API key):** Settings > **On-phone models** downloads GGUF models (Qwen3.5, Gemma 4, LFM2.5, Nemotron and more, sized to your phone's memory) or any GGUF from Hugging Face, and runs them with llama.cpp. Then pick **On this phone** in a bot's Engine panel.
 
 Android stops background apps aggressively: allow YakkBot to run in the background when the app asks. The app restarts your bots after the phone reboots.
 

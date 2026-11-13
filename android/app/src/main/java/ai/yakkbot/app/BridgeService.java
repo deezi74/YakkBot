@@ -28,7 +28,7 @@ public class BridgeService extends Service {
     private Bridge bridge;
     private Thread server;
     private volatile boolean running = true;
-    private volatile Process process;
+    private volatile Process process, desktop;
     private PowerManager.WakeLock wake;
 
     static void start(Context c) {
@@ -71,6 +71,7 @@ public class BridgeService extends Service {
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && ACTION_RESTART.equals(intent.getAction())) {
+            // The supervisor starts it again, with the desktop if one was just installed.
             Process p = process;
             if (p != null) p.destroy();
         }
@@ -88,6 +89,7 @@ public class BridgeService extends Service {
                 linux.configure();
                 linux.installApp(BuildConfig.VERSION_CODE);
                 long started = System.currentTimeMillis();
+                startDesktop(linux);
                 process = linux.startServer(serverEnv(this, linux));
                 state = "running";
                 int code = process.waitFor();
@@ -123,7 +125,23 @@ public class BridgeService extends Service {
         env.put("YAKK_BRIDGE_TOKEN", Prefs.token(c));
         env.put("YAKK_OWNER", Prefs.ownerName(c));
         env.put("NODE_OPTIONS", "--max-old-space-size=384");
+        Desktop.addServerEnv(c, env);
         return env;
+    }
+
+    /** The bots' desktop (when installed): started once, and again if it stopped. */
+    private void startDesktop(Linux linux) {
+        if (!Desktop.installed(this)) return;
+        Process d = desktop;
+        if (d != null && d.isAlive()) return;
+        try {
+            ProcessBuilder pb = linux.command(Desktop.script(), null);
+            pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new java.io.File(linux.base, "desktop.log")));
+            desktop = pb.start();
+            Thread.sleep(3000);
+        } catch (Exception e) {
+            lastError = "The desktop did not start: " + e.getMessage();
+        }
     }
 
     private static void sleep(long ms) { try { Thread.sleep(ms); } catch (InterruptedException ignored) {} }
@@ -132,6 +150,8 @@ public class BridgeService extends Service {
         running = false;
         Process p = process;
         if (p != null) p.destroy();
+        Process d = desktop;
+        if (d != null) d.destroy();
         if (server != null) server.interrupt();
         if (bridge != null) bridge.stop();
         if (wake != null && wake.isHeld()) wake.release();

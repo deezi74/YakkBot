@@ -26,7 +26,33 @@ jobs:
         run: |
           sudo apt-get install -y patchelf >/dev/null
           bash android/scripts/fetch-proot.sh android/app/src/main/jniLibs/arm64-v8a
+      - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platforms;android-35 build-tools;35.0.0 cmake;3.22.1 ndk;27.2.12479018
+      # On-phone models: llama.cpp's server built for Android (same as D-Agent). Cached: the build takes ~10 minutes.
+      - name: Model engine cache
+        id: llama
+        uses: actions/cache/restore@v4
+        with:
+          path: android/deps/llama-out/libllamaserver.so
+          key: llama-server-b12017-${{ hashFiles('android/scripts/build-llama-server.sh') }}
+      - name: Model engine (llama.cpp)
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
+          export PATH="$ANDROID_HOME/cmake/3.22.1/bin:$PATH"
+          if [ ! -f android/deps/llama-out/libllamaserver.so ]; then
+            bash android/scripts/build-llama-server.sh android/deps/llama-out || echo "::warning::llama-server build failed; this APK ships without on-phone models"
+          fi
+          if [ -f android/deps/llama-out/libllamaserver.so ]; then cp android/deps/llama-out/libllamaserver.so android/app/src/main/jniLibs/arm64-v8a/; fi
+          ls -la android/app/src/main/jniLibs/arm64-v8a/
+      - name: Save model engine cache
+        if: steps.llama.outputs.cache-hit != 'true' && hashFiles('android/deps/llama-out/libllamaserver.so') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: android/deps/llama-out/libllamaserver.so
+          key: llama-server-b12017-${{ hashFiles('android/scripts/build-llama-server.sh') }}
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: 8.14.3 }
       - name: Use the signing key, if one is set

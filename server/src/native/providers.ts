@@ -1,6 +1,7 @@
 import { db, now } from '../db.js';
 import { env } from '../env.js';
 import type { EngineProvider } from '../types.js';
+import { bridge, pairing } from '../device.js';
 
 /**
  * Model providers for the built-in engine. Bring any model: Claude through the Anthropic API, or
@@ -35,6 +36,9 @@ export const PROVIDERS: ProviderDef[] = [
   { id: 'groq', name: 'Groq', wire: 'openai', baseUrl: 'https://api.groq.com/openai/v1', envKey: 'GROQ_API_KEY', models: [], keyHint: 'gsk_…' },
   { id: 'ollama', name: 'Ollama (local models)', wire: 'openai', baseUrl: (process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434/v1').replace(/\/+$/, ''), envKey: 'OLLAMA_API_KEY', models: [], keyless: true },
   { id: 'custom', name: 'Custom (OpenAI-compatible)', wire: 'openai', baseUrl: (process.env.CUSTOM_BASE_URL ?? process.env.OPENAI_BASE_URL ?? '').replace(/\/+$/, ''), envKey: 'CUSTOM_API_KEY', models: [] },
+  // GGUF models downloaded to the phone and run by the YakkBot app (llama.cpp), offline.
+  // Last, so a bot with no provider of its own only falls back to it when nothing else is set up.
+  { id: 'phone', name: 'On this phone (offline)', wire: 'openai', baseUrl: 'http://127.0.0.1:8081/v1', envKey: 'PHONE_MODEL_KEY', models: [], keyless: true },
 ];
 
 db.exec(`CREATE TABLE IF NOT EXISTS provider_keys (
@@ -65,6 +69,7 @@ export function providerBaseUrl(id: string): string {
 export function providerConnected(id: string): boolean {
   const def = providerDef(id);
   if (!def) return false;
+  if (def.id === 'phone') { void phoneModels(); return phoneCache.files.length > 0; }
   if (def.id === 'custom') return !!providerBaseUrl(id);
   if (def.keyless) return !!stored(id) || !!process.env.OLLAMA_BASE_URL || !!process.env[def.envKey];
   return !!providerKey(id);
@@ -99,6 +104,7 @@ const modelCache = new Map<string, { at: number; models: string[] }>();
 export async function providerModels(id: string): Promise<string[]> {
   const def = providerDef(id);
   if (!def) return [];
+  if (def.id === 'phone') return phoneModels();
   const pinned = [stored(id)?.default_model, process.env[`${id.toUpperCase()}_MODEL`]].filter(Boolean) as string[];
   if (def.wire === 'anthropic' || !providerConnected(id)) return [...new Set([...pinned, ...def.models])];
   const hit = modelCache.get(id);
@@ -119,6 +125,7 @@ export async function providerModels(id: string): Promise<string[]> {
 export function defaultModel(id: string): string | null {
   const def = providerDef(id);
   if (!def) return null;
+  if (def.id === 'phone') return stored(id)?.default_model || phoneCache.files[0] || null;
   return stored(id)?.default_model || process.env[`${id.toUpperCase()}_MODEL`] || def.models[0] || modelCache.get(id)?.models[0] || null;
 }
 
@@ -131,7 +138,10 @@ export function defaultProvider(): string | null {
 
 export async function listProviders(): Promise<EngineProvider[]> {
   const out: EngineProvider[] = [];
+  if (pairing()) await phoneModels();
   for (const p of PROVIDERS) {
+    // On-phone models only exist inside the YakkBot app.
+    if (p.id === 'phone' && !pairing()) continue;
     const connected = providerConnected(p.id);
     out.push({
       id: p.id, name: p.name, kind: 'api_key', connected,
@@ -144,3 +154,21 @@ export async function listProviders(): Promise<EngineProvider[]> {
   }
   return out.sort((a, b) => Number(b.connected) - Number(a.connected));
 }
+
+// ---------- models on the phone (the YakkBot app's llama.cpp) ----------
+
+const phoneCache: { at: number; files: string[] } = { at: 0, files: [] };
+
+/** The .gguf files downloaded in the app, cached for a few seconds. Empty without the app. */
+export async function phoneModels(): Promise<string[]> {
+  if (!pairing()) return (phoneCache.files = []);
+  if (Date.now() - phoneCache.at < 5000) return phoneCache.files;
+  phoneCache.at = Date.now();
+  try {
+    const s = await bridge('/models/status', {}, 4000);
+    phoneCache.files = s.engine ? (s.installed ?? []).map((m: any) => String(m.file)) : [];
+  } catch { /* the app is not answering: keep what we knew */ }
+  return phoneCache.files;
+}
+
+export const forgetPhoneModels = () => { phoneCache.at = 0; };

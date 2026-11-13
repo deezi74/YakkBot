@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { providerBaseUrl, providerDef, providerKey } from './providers.js';
+import { bridge } from '../device.js';
 
 /**
  * One model call, streamed. The conversation is kept in a provider-neutral form (Item) and turned
@@ -199,6 +200,11 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function callOpenAI(req: LlmRequest): Promise<Reply> {
   const def = providerDef(req.provider)!;
+  // A model on the phone: the app loads it first (the first time can take a minute).
+  if (def.id === 'phone') {
+    req.onDelta({ type: 'reasoning-start' });
+    await bridge('/models/use', { file: req.model, ctx: 12288 }, 240_000);
+  }
   const base = providerBaseUrl(req.provider);
   if (!base) throw new LlmError(`${def.name} has no address yet. Set it in Settings.`);
   const key = providerKey(req.provider);

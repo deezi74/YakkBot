@@ -15,7 +15,8 @@ import { openTerminal } from './desk.js';
 import path from 'node:path';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
 import { MEMORY_LIMIT, USER_LIMIT, readHomeFile, writeHomeFile, type HomeFile } from './native/home.js';
-import { bridgeStatus, pair, unpair } from './device.js';
+import { bridge, BridgeError, bridgeStatus, pair, unpair } from './device.js';
+import { forgetPhoneModels } from './native/providers.js';
 import { PROVIDERS, listProviders, removeProviderKey, setProviderKey } from './native/providers.js';
 import { listMemories } from './engine-memory.js';
 import { idleConfig, viewerCount } from './idle.js';
@@ -27,7 +28,7 @@ import type { LibraryFile, Skill } from './types.js';
  */
 export const configApi = new Hono<AuthVars>();
 
-for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*']) configApi.use(p, requireUser);
+for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*']) configApi.use(p, requireUser);
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
@@ -406,3 +407,25 @@ configApi.post('/device/pair', async (c) => {
 });
 
 configApi.delete('/device', (c) => { unpair(); return c.json({ paired: false, reachable: false, info: null }); });
+
+// ---------- models on the phone and the bots' desktop: handled by the Android app ----------
+
+const viaApp = async (c: any, path: string, body: Record<string, unknown> = {}, timeoutMs = 30_000) => {
+  try {
+    return c.json(await bridge(path, body, timeoutMs));
+  } catch (e: any) {
+    return c.json({ error: String(e?.message ?? e) }, e instanceof BridgeError ? 409 : 502);
+  }
+};
+
+configApi.get('/phone-models', (c) => viaApp(c, '/models/status'));
+configApi.post('/phone-models/:action', async (c) => {
+  const action = c.req.param('action');
+  if (!['download', 'cancel', 'delete', 'search', 'files', 'stop'].includes(action)) return c.json({ error: 'unknown action' }, 404);
+  const body = await c.req.json().catch(() => ({}));
+  forgetPhoneModels();
+  return viaApp(c, `/models/${action}`, body, action === 'search' || action === 'files' ? 45_000 : 30_000);
+});
+
+configApi.get('/desktop', (c) => viaApp(c, '/desktop/status'));
+configApi.post('/desktop/install', (c) => viaApp(c, '/desktop/install'));

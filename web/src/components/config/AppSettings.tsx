@@ -10,12 +10,14 @@ import { computerStatusText } from '../DetailsPanel';
 import { Icon } from '../Icon';
 import { ToolkitLogo } from '../ToolkitLogo';
 import { Glyph } from './glyphs';
+import { PhoneModels } from './PhoneModels';
 import { android, androidInfo, pairAndroid, type AndroidInfo } from '../../lib/android';
 import { ConfirmButton } from './ui';
 
 const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'general', label: 'General' },
   { id: 'phone', label: 'Phone control' },
+  { id: 'models', label: 'On-phone models' },
   { id: 'computer', label: 'Computer' },
   { id: 'permissions', label: 'Permissions' },
   { id: 'apps', label: 'Connected apps' },
@@ -25,7 +27,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
 /** Full-window settings page, opened from the account menu. */
 export function AppSettings() {
   const f = useFeatures();
-  const sections = SECTIONS.filter((s) => (s.id === 'computer' ? f.computer === 'orgo' : s.id === 'apps' ? f.apps : s.id === 'phone' ? f.phone || !!android : true));
+  const sections = SECTIONS.filter((s) => (s.id === 'computer' ? f.computer === 'orgo' : s.id === 'apps' ? f.apps : s.id === 'phone' ? f.phone || !!android : s.id === 'models' ? f.app : true));
   const section = useConfigUI((s) => s.appSettings);
   const close = useConfigUI((s) => s.closeAppSettings);
   const open = useConfigUI((s) => s.openAppSettings);
@@ -51,6 +53,7 @@ export function AppSettings() {
         <div className="app-settings__page">
           {section === 'general' && <GeneralSection />}
           {section === 'phone' && <PhoneSection />}
+          {section === 'models' && <PhoneModels />}
           {section === 'computer' && <ComputerSection />}
           {section === 'permissions' && <PermissionsSection />}
           {section === 'apps' && <AppsSection />}

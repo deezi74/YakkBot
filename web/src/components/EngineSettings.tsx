@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Bot, EngineInfo, EngineProvider } from '@shared/types';
 import { configApi } from '../lib/configApi';
 import { useStore } from '../store';
+import { useConfigUI } from '../configStore';
 import { Icon } from './Icon';
 
 const KIND: Record<EngineProvider['kind'], string> = { subscription: 'Subscription', api_key: 'API key' };
@@ -95,7 +96,9 @@ export function EngineSettings({ bot }: { bot: Bot }) {
   const listId = `engine-models-${botId}`;
 
   const native = engine.kind === 'native';
-  const needsSetup = native && !!selected && (!selected.connected || editKey);
+  // On-phone models are downloaded, not keyed.
+  const phoneModels = native && selected?.id === 'phone';
+  const needsSetup = native && !!selected && !phoneModels && (!selected.connected || editKey);
 
   const pickProvider = (id: string) => {
     dirty.current = true; setNote(null); setProvider(id); setKeyDraft(''); setEditKey(false);
@@ -182,6 +185,14 @@ export function EngineSettings({ bot }: { bot: Bot }) {
           {native && selected.connected && !selected.fromEnv && !editKey && (
             <button type="button" className="link-btn link-btn--small engine__keylink" onClick={() => { setEditKey(true); setUrlDraft(selected.baseUrl ?? ''); }}>Change</button>
           )}
+        </div>
+      )}
+      {phoneModels && (
+        <div className="engine__key">
+          <div className="engine__hint">{selected?.connected ? 'Runs on this phone, offline. The first reply loads the model, which can take a minute.' : 'No model is downloaded yet.'}</div>
+          <div className="engine__actions">
+            <button type="button" className="btn btn--sm btn--bot" onClick={() => useConfigUI.getState().openAppSettings('models')}>{selected?.connected ? 'Manage models' : 'Download a model'}</button>
+          </div>
         </div>
       )}
       {needsSetup && selected && (

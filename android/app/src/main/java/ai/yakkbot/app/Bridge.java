@@ -34,10 +34,11 @@ final class Bridge implements Runnable {
     private final Context ctx;
     private final ExecutorService pool = Executors.newFixedThreadPool(4);
     private final PhoneActions phone;
+    private final LocalModels models;
     private volatile ServerSocket server;
     private volatile boolean running = true;
 
-    Bridge(Context ctx) { this.ctx = ctx.getApplicationContext(); this.phone = new PhoneActions(this.ctx); }
+    Bridge(Context ctx) { this.ctx = ctx.getApplicationContext(); this.phone = new PhoneActions(this.ctx); this.models = new LocalModels(this.ctx); }
 
     void stop() {
         running = false;
@@ -148,6 +149,8 @@ final class Bridge implements Runnable {
                 .put("screenControl", YakkAccessibilityService.instance != null)
                 .put("notifications", YakkNotificationListener.instance != null)
                 .put("phone", true)
+                .put("models", new LocalModels(c).engineBundled())
+                .put("desktop", Desktop.status(c))
                 .put("permissions", new PhoneActions(c).groups())
                 .put("unrestrictedBattery", pm != null && pm.isIgnoringBatteryOptimizations(c.getPackageName()));
     }
@@ -166,6 +169,29 @@ final class Bridge implements Runnable {
 
             case "/phone":
                 return phone.run(a);
+
+            // ---- models that run on the phone (llama.cpp) ----
+            case "/models/status":
+                return models.status();
+            case "/models/download": {
+                if (a.has("id")) {
+                    for (Object[] m : LocalModels.CATALOG) if (m[0].equals(a.getString("id"))) { models.download("https://huggingface.co/" + m[3] + "/resolve/main/" + m[4], (String) m[4], (String) m[1]); return ok; }
+                    throw new IllegalStateException("No model " + a.getString("id") + " in the list.");
+                }
+                String url = a.getString("url"), file = a.getString("file");
+                models.download(url, file, file.replace(".gguf", ""));
+                return ok;
+            }
+            case "/models/cancel": models.cancel(a.getString("file")); return ok;
+            case "/models/delete": models.delete(a.getString("file")); return ok;
+            case "/models/search": return new JSONObject().put("results", models.search(a.optString("q")));
+            case "/models/files": return new JSONObject().put("files", models.files(a.optString("repo")));
+            case "/models/use": models.use(a.getString("file"), Math.max(2048, Math.min(a.optInt("ctx", 8192), 32768))); return ok.put("port", LocalModels.PORT);
+            case "/models/stop": models.stop(); return ok;
+
+            // ---- the desktop computer in the app's Linux ----
+            case "/desktop/status": return Desktop.status(ctx);
+            case "/desktop/install": Desktop.installAsync(ctx); return ok;
 
             case "/ui/dump":
                 return screen().dump(Math.min(a.optInt("max", 250), 600));

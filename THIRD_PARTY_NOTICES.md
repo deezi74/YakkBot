@@ -61,3 +61,5 @@ The YakkBot app runs its server in a Linux system inside the app, the way D-Agen
 - **PRoot** (GPL-2.0, https://github.com/termux/proot), with **libtalloc** (LGPL-3.0) and **libandroid-shmem** (BSD-3-Clause), from the Termux package repository. They ship as separate programs in the APK (`lib*.so`); YakkBot's own code is not affected by their licenses. Source: https://github.com/termux/proot and https://github.com/termux/termux-packages.
 - **Alpine Linux** and its packages (Node.js and others) are downloaded from Alpine's servers on first use, under their own licenses; they are not part of the APK.
 - The server bundle in the APK includes its npm dependencies; their license notices are in `server.mjs.LEGAL.txt` next to it.
+- **llama.cpp's server** (MIT, https://github.com/ggml-org/llama.cpp) ships in the APK as `libllamaserver.so` and runs on-phone models as a separate program. Models are downloaded from Hugging Face on request, under their own licenses.
+- The optional desktop (TigerVNC, XFCE, Chromium and others) is installed from Alpine's servers on request, under their own licenses.

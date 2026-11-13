@@ -21,6 +21,9 @@ const fakeBridge = http.createServer((req, res) => {
     if (req.headers.authorization !== `Bearer ${BRIDGE_TOKEN}`) return send(401, { error: 'unauthorized' });
     bridgeCalls.push({ path: req.url, body: JSON.parse(raw || '{}') });
     if (req.url === '/status') return send(200, { ok: true, screenControl: true, phone: true });
+    if (req.url === '/models/status') return send(200, { engine: true, ramGb: 8, recommended: 'qwen35-2b', state: 'stopped', running: '', catalog: [], installed: [{ file: 'tiny.gguf', bytes: 1000 }], downloads: [] });
+    if (req.url === '/models/use') return send(200, { ok: true, port: 8081 });
+    if (req.url === '/desktop/status') return send(200, { state: 'none' });
     if (req.url === '/phone') return send(200, { ok: true, output: `Text sent to ${JSON.parse(raw).number}.` });
     if (req.url === '/ui/dump') return send(200, { app: 'com.example', screen: { width: 1080, height: 2400 }, nodes: [{ text: 'Send', kind: 'Button', x: 900, y: 2200, tap: true }] });
     if (req.url === '/ui/tap') return send(200, { ok: true, x: 900, y: 2200 });
@@ -169,6 +172,19 @@ async function run(wire) {
     rs = await settle(bot.id, (r) => lastAssistant(r)?.startsWith('Tool said: Text sent'));
     check('the text is sent through the app', bridgeCalls.some((c) => c.path === '/phone' && c.body.action === 'sms_send' && c.body.text === 'on my way'), JSON.stringify(bridgeCalls.slice(-2)));
   }
+  // Models on the phone: listed once the app reports one, loaded by the app before each reply.
+  const providers = (await api('GET', '/providers')).json.providers;
+  const phoneProv = providers.find((p) => p.id === 'phone');
+  check('the on-phone provider lists downloaded models', phoneProv?.connected && phoneProv.models.includes('tiny.gguf'), JSON.stringify(phoneProv));
+  const third = (await api('POST', '/bots', { name: 'Pocket', mode: 'personal' })).json.bot;
+  await api('PUT', '/providers/phone', { baseUrl: `http://127.0.0.1:${MOCK}/v1` });
+  await api('PATCH', `/bots/${third.id}/engine`, { provider: 'phone', model: 'tiny.gguf' });
+  await api('POST', `/bots/${third.id}/messages`, { text: 'offline hello' });
+  rs = await settle(third.id, (r) => !!lastAssistant(r));
+  check('a bot answers with a model on the phone', lastAssistant(rs) === 'You said: offline hello', lastAssistant(rs) ?? JSON.stringify(rs.slice(-1)));
+  check('the app was asked to load the model first', bridgeCalls.some((c) => c.path === '/models/use' && c.body.file === 'tiny.gguf'));
+  check('the computer card can ask the app about the desktop', (await api('GET', '/desktop')).json.state === 'none');
+  await api('DELETE', `/bots/${third.id}`);
   await api('DELETE', '/device');
 
   const mcp = await fetch(`${base}/mcp/${bot.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
