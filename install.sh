@@ -44,9 +44,24 @@ node_ok() {
 install_deps() {
   case "$PLATFORM" in
     termux)
-      say "Installing packages with pkg"
+      # Termux does not support partial upgrades: a Node.js built for newer libraries than the ones
+      # installed fails with "CANNOT LINK EXECUTABLE ... libicu...so not found". Bring everything current first.
+      say "Updating Termux packages (a few minutes the first time)"
       yes | pkg update >/dev/null 2>&1 || true
-      pkg install -y nodejs-lts git openssl-tool termux-api >/dev/null || pkg install -y nodejs git openssl-tool termux-api
+      DEBIAN_FRONTEND=noninteractive pkg upgrade -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+        || warn "Some packages did not update; continuing."
+      say "Installing Node.js, git and Termux:API tools"
+      if pkg list-installed 2>/dev/null | grep -q '^nodejs/'; then
+        pkg install -y nodejs git openssl-tool termux-api
+      else
+        pkg install -y nodejs-lts git openssl-tool termux-api || pkg install -y nodejs git openssl-tool termux-api
+      fi
+      # Still broken after the upgrade: reinstall Node and the library it links against.
+      if have node && ! node -v >/dev/null 2>&1; then
+        say "Repairing Node.js"
+        local pkgname=nodejs-lts; pkg list-installed 2>/dev/null | grep -q '^nodejs/' && pkgname=nodejs
+        pkg reinstall -y libicu "$pkgname" || true
+      fi
       ;;
     linux|crostini)
       local missing=()
@@ -76,7 +91,14 @@ install_deps() {
       have git || die "Install git (xcode-select --install), then run this again."
       ;;
   esac
-  node_ok || die "Node.js >= $NODE_MIN_MAJOR.$NODE_MIN_MINOR is needed (found: $(node -v 2>/dev/null || echo none))."
+  if ! node_ok; then
+    if have node && ! node -v >/dev/null 2>&1; then
+      node -v 2>&1 | head -2 >&2
+      [ "$PLATFORM" = termux ] && die "Node.js is installed but will not start (above). Run: pkg upgrade -y && pkg reinstall -y libicu nodejs-lts   then run this installer again."
+      die "Node.js is installed but will not start (above). Reinstall Node.js, then run this installer again."
+    fi
+    die "Node.js >= $NODE_MIN_MAJOR.$NODE_MIN_MINOR is needed (found: $(node -v 2>/dev/null || echo none))."
+  fi
   say "Node $(node -v), npm $(npm -v)"
 }
 
