@@ -157,9 +157,24 @@ CLI
   YAKK_BIN="$bin/yakkbot"
 }
 
+# Let the YakkBot Android app start the server through Termux (its RUN_COMMAND intent is off by default).
+allow_app_control() {
+  [ "$PLATFORM" = termux ] || return 0
+  mkdir -p "$HOME/.termux"
+  local f="$HOME/.termux/termux.properties"
+  touch "$f"
+  if grep -Eq '^[[:space:]]*allow-external-apps[[:space:]]*=' "$f"; then
+    sed -i -E 's/^[[:space:]]*allow-external-apps[[:space:]]*=.*/allow-external-apps = true/' "$f"
+  else
+    printf '\n# Lets the YakkBot app start and stop the server.\nallow-external-apps = true\n' >> "$f"
+  fi
+  have termux-reload-settings && termux-reload-settings || true
+}
+
 install_deps
 fetch_code
 build
+allow_app_control
 NEW_PASS=""
 write_env
 install_cli
@@ -175,5 +190,6 @@ echo "   Add a model: open your bot > details > Engine, pick a provider, paste a
 echo "                or: yakkbot key anthropic sk-ant-..."
 echo "   Commands:    yakkbot status | logs | stop | restart | update | boot | doctor"
 [ "$PLATFORM" = termux ] && echo "   Phone tools: install the Termux:API app (F-Droid) so bots can notify you, read the clipboard, text, etc."
-[ "$PLATFORM" = termux ] && echo "   Home screen: in Chrome, menu > Add to Home screen, to get YakkBot as an app."
+[ "$PLATFORM" = termux ] && echo "   The app:     install the YakkBot app for a home-screen icon and phone control:"
+[ "$PLATFORM" = termux ] && echo "                https://github.com/deezi74/YakkBot/releases/latest/download/yakkbot.apk"
 exit 0

@@ -7,6 +7,7 @@ import { env } from '../env.js';
 import { hub } from '../lib/hub.js';
 import { displayEnv, hasLocalDesktop, localScreenshot } from '../computer.js';
 import type { ActivityKind } from '../types.js';
+import { bridge, bridgeUsable } from '../device.js';
 import { ensureHome, entries, MEMORY_LIMIT, readHomeFile, SEP, USER_LIMIT, writeHomeFile } from './home.js';
 import type { Image, ToolSpec } from './llm.js';
 
@@ -420,14 +421,101 @@ const SCREEN: DeviceTool = {
   impl: (a) => screen(a),
 };
 
+// ---------- device (the YakkBot Android app's bridge) ----------
+
+const DEVICE_ACTIONS = ['read_screen', 'screenshot', 'tap', 'long_press', 'swipe', 'type', 'key', 'open_app', 'list_apps', 'open_url', 'notifications', 'dismiss_notification', 'wait'] as const;
+/** Where a screenshot's pixels sit on the real screen, so taps given in screenshot pixels land right. */
+let shotScale = 1;
+
+async function device(a: any): Promise<DeviceResult> {
+  const n = (v: unknown) => Math.round(Number(v) || 0);
+  const k = a.from_screenshot ? shotScale : 1;
+  switch (a.action) {
+    case 'read_screen': {
+      const r = await bridge('/ui/dump', { max: 250 });
+      const lines = (r.nodes ?? []).map((x: any) => {
+        const flags = [x.tap && 'tap', x.edit && 'edit', x.scroll && 'scroll', x.focused && 'focused', x.checked !== undefined && (x.checked ? 'on' : 'off')].filter(Boolean).join(',');
+        return `(${x.x},${x.y}) ${x.kind}${flags ? ` [${flags}]` : ''} ${JSON.stringify(x.text ?? x.label ?? '')}${x.text && x.label ? ` label=${JSON.stringify(x.label)}` : ''}`;
+      });
+      return { output: `App in front: ${r.app ?? 'unknown'}. Screen ${r.screen?.width}x${r.screen?.height}.\n${lines.join('\n') || '(nothing readable; try a screenshot)'}` };
+    }
+    case 'screenshot': {
+      const r = await bridge('/ui/screenshot', { maxSide: 1280 }, 15_000);
+      shotScale = r.screenWidth && r.width ? r.screenWidth / r.width : 1;
+      return { output: `Screenshot ${r.width}x${r.height} of a ${r.screenWidth}x${r.screenHeight} screen. To tap something you see in it, pass its pixel position in this image with from_screenshot true.`, image: { mime: r.mime ?? 'image/jpeg', data: r.image } };
+    }
+    case 'tap':
+    case 'long_press': {
+      const body = a.text && a.x === undefined ? { text: String(a.text) } : { x: n(a.x * k), y: n(a.y * k) };
+      const r = await bridge('/ui/tap', { ...body, long: a.action === 'long_press' });
+      return { output: `Tapped (${r.x},${r.y}). Read the screen to see what changed.`, summary: a.text ? `Tapped "${String(a.text).slice(0, 40)}"` : 'Tapped' };
+    }
+    case 'swipe':
+      await bridge('/ui/swipe', { x1: n(a.x * k), y1: n(a.y * k), x2: n(a.x2 * k), y2: n(a.y2 * k), ms: Math.min(Math.max(n(a.ms) || 300, 80), 3000) });
+      return { output: 'Swiped.', summary: 'Swiped' };
+    case 'type':
+      await bridge('/ui/type', { text: String(a.text ?? ''), append: !!a.append, enter: !!a.enter });
+      return { output: 'Typed.', summary: 'Typed' };
+    case 'key':
+      await bridge('/ui/key', { key: String(a.key ?? '') });
+      return { output: `Pressed ${a.key}.`, summary: `Pressed ${a.key}` };
+    case 'open_app': {
+      const r = await bridge('/apps/open', { name: String(a.app ?? a.text ?? '') });
+      await new Promise((res) => setTimeout(res, 1200));
+      return { output: `Opened ${r.package}. Read the screen next.`, summary: `Opened ${a.app ?? r.package}` };
+    }
+    case 'list_apps': {
+      const r = await bridge('/apps/list');
+      return { output: (r.apps ?? []).map((x: any) => `${x.name} (${x.package})`).sort().join('\n') };
+    }
+    case 'open_url':
+      await bridge('/open', { url: String(a.url ?? '') });
+      return { output: 'Opened.', summary: 'Opened a link' };
+    case 'notifications': {
+      const r = await bridge('/notifications/list', { limit: Math.min(n(a.limit) || 30, 100) });
+      return { output: JSON.stringify(r.notifications ?? [], null, 1).slice(0, 30_000) };
+    }
+    case 'dismiss_notification':
+      await bridge('/notifications/dismiss', { key: String(a.key ?? '') });
+      return { output: 'Dismissed.' };
+    case 'wait':
+      await new Promise((res) => setTimeout(res, Math.min(Math.max(n(a.ms) || 1000, 100), 10_000)));
+      return { output: 'Waited.' };
+    default:
+      return { output: `Unknown action "${a.action}". Use one of: ${DEVICE_ACTIONS.join(', ')}.`, isError: true };
+  }
+}
+
+const DEVICE: DeviceTool = {
+  name: 'device',
+  description: 'Operate the Android phone itself, in any app, the way a person would. Actions: read_screen (the text and buttons on screen with their positions; start here), screenshot (an image, when the text is not enough), tap / long_press (x, y, or text to tap the first element containing it), swipe (x, y to x2, y2; swipe up to scroll down), type (text into the focused field; append, enter), key (back, home, recents, notifications, quick_settings, lock), open_app (app name or package), list_apps, open_url (a link, tel:, geo:, or an android.settings.* page), notifications (limit), dismiss_notification (key), wait (ms). Positions are real screen pixels unless from_screenshot is true. After each action, read the screen again before the next one. Stop and tell the user if you reach a payment, a password prompt or anything you were not asked to do.',
+  parameters: obj({
+    action: { type: 'string', enum: [...DEVICE_ACTIONS] },
+    x: { type: 'number' }, y: { type: 'number' }, x2: { type: 'number' }, y2: { type: 'number' },
+    text: { type: 'string' }, app: { type: 'string' }, url: { type: 'string' }, key: { type: 'string' },
+    append: { type: 'boolean' }, enter: { type: 'boolean' }, from_screenshot: { type: 'boolean' },
+    ms: { type: 'number' }, limit: { type: 'number' },
+  }, ['action']),
+  activity: 'on_its_computer',
+  label: 'Using the phone',
+  // One OK covers a kind of access; "Always allow" on the card remembers it.
+  gate: (a) =>
+    a?.action === 'notifications' || a?.action === 'dismiss_notification' ? { key: 'DEVICE_READ_NOTIFICATIONS', title: 'Phone: read your notifications' }
+    : a?.action === 'list_apps' || a?.action === 'wait' ? null
+    : a?.action === 'read_screen' || a?.action === 'screenshot' ? { key: 'DEVICE_SEE_THE_SCREEN', title: 'Phone: see what is on your screen' }
+    : { key: 'DEVICE_CONTROL_THE_SCREEN', title: 'Phone: tap and type on your screen' },
+  impl: (a) => device(a),
+};
+
+export const deviceBridgeAvailable = () => bridgeUsable();
 export const phoneAvailable = () => env.isTermux && have('termux-battery-status');
 export const screenAvailable = () => hasLocalDesktop() && have('xdotool');
 
 export function deviceTools(): DeviceTool[] {
-  return [...BASE, ...(phoneAvailable() ? [PHONE] : []), ...(screenAvailable() ? [SCREEN] : [])];
+  return [...BASE, ...(phoneAvailable() ? [PHONE] : []), ...(deviceBridgeAvailable() ? [DEVICE] : []), ...(screenAvailable() ? [SCREEN] : [])];
 }
 
 /** Every device tool there is, for labels and activity lines (whether or not this device offers it). */
-export const ALL_DEVICE_TOOLS: DeviceTool[] = [...BASE, PHONE, SCREEN];
+export const ALL_DEVICE_TOOLS: DeviceTool[] = [...BASE, PHONE, DEVICE, SCREEN];
 
 export const policyMode = (userId: string, key: string): string | undefined => (db.prepare('SELECT mode FROM policies WHERE user_id=? AND tool=?').get(userId, key) as any)?.mode;

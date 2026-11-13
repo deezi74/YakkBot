@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YakkBot</string>
+    <string name="accessibility_label">YakkBot phone control</string>
+    <string name="notification_label">YakkBot notifications</string>
+    <string name="accessibility_description">Lets your YakkBot agents see what is on the screen and tap, swipe and type for you, in any app. YakkBot only does this when one of your bots asks, and the bots ask you before they start. Nothing leaves this phone except what a bot sends to the model you chose.</string>
+</resources>

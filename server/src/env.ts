@@ -148,4 +148,5 @@ export const features = () => ({
   phone: env.isTermux,
   telegram: !!env.telegramToken,
 });
+// (Whether the Android app is paired is live state, served by GET /api/device.)
 export type Features = ReturnType<typeof features>;

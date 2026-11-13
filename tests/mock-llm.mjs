@@ -2,6 +2,7 @@
 // Anthropic Messages protocol, streaming. What it "decides" depends only on the last message:
 //   "run: <cmd>"       -> calls the terminal tool
 //   "remember: <text>" -> calls the memory tool
+//   "screen: <action> [text]" -> calls the device tool
 //   "ask: <question>"  -> calls ask_user
 //   after a tool result -> answers "Tool said: <first line>"
 //   anything else      -> answers "You said: <text>"
@@ -16,6 +17,7 @@ function decide(lastUserText, lastToolOutput) {
   let m;
   if ((m = /^run:\s*([\s\S]+)/.exec(t))) return { think: 'I should run that.', call: { name: 'terminal', args: { command: m[1].trim() } } };
   if ((m = /^remember:\s*([\s\S]+)/.exec(t))) return { call: { name: 'memory', args: { action: 'add', target: 'user', text: m[1].trim() } } };
+  if ((m = /^screen:\s*(\w+)\s*([\s\S]*)/.exec(t))) return { call: { name: 'device', args: { action: m[1], ...(m[2].trim() ? { text: m[2].trim() } : {}) } } };
   if ((m = /^ask:\s*([\s\S]+)/.exec(t))) return { call: { name: 'ask_user', args: { question: m[1].trim(), options: ['Yes', 'No'] } } };
   return { text: `You said: ${t}` };
 }
@@ -42,9 +44,10 @@ function openai(body, res) {
 function anthropic(body, res) {
   const last = body.messages[body.messages.length - 1];
   const blocks = Array.isArray(last.content) ? last.content : [{ type: 'text', text: last.content }];
-  const tr = blocks.find((b) => b.type === 'tool_result');
+  // A new user message can share a turn with the previous tool result; the newest block is what counts.
+  const tr = blocks[blocks.length - 1]?.type === 'tool_result' ? blocks[blocks.length - 1] : null;
   const trText = tr ? (Array.isArray(tr.content) ? tr.content.map((c) => c.text ?? '').join('') : String(tr.content)) : null;
-  const d = decide(blocks.filter((b) => b.type === 'text').map((b) => b.text).join(''), trText);
+  const d = decide(blocks.filter((b) => b.type === 'text').map((b) => b.text).pop() ?? '', trText);
   res.writeHead(200, { 'content-type': 'text/event-stream' });
   const msg = { id: `msg_${Date.now()}`, type: 'message', role: 'assistant', model: body.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 0 } };
   sse(res, { type: 'message_start', message: msg }, 'message_start');

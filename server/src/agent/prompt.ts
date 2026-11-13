@@ -2,7 +2,7 @@ import { db } from '../db.js';
 import { env } from '../env.js';
 import { getBotRow, listRoutines } from '../store.js';
 import { connectedToolkits } from '../composio.js';
-import { phoneAvailable, screenAvailable, workspace } from '../native/tools.js';
+import { deviceBridgeAvailable, phoneAvailable, screenAvailable, workspace } from '../native/tools.js';
 import { LIBRARY_ROOT } from './tools.js';
 
 /**
@@ -60,8 +60,9 @@ export async function instructionsFor(userId: string, botId: string): Promise<st
       '- memory keeps durable notes for future conversations. Save what will still matter later: preferences, people, how things are set up. Not the task at hand.',
     ];
     if (phoneAvailable()) lines.push(`- phone uses the handset itself: notifications, the clipboard, location, SMS, calls, contacts, the camera, speaking aloud. A notification is the right way to reach ${owner} when they are not looking at the app.`);
+    if (deviceBridgeAvailable()) lines.push(`- device operates the phone's own screen in any app: read what is on it, tap, swipe, type, open apps, read notifications. Use it when there is no better way (a shell command, a connected app or the phone tool is faster and more reliable). ${owner} can see everything you do on the screen.`);
     if (screenAvailable()) lines.push(`- screen shows you the desktop and lets you click and type on it. ${owner} can watch it live in the app and take over the mouse and keyboard.`);
-    else lines.push('- There is no desktop to look at, so work through the shell, files and the web rather than a browser window.');
+    else if (!deviceBridgeAvailable()) lines.push('- There is no desktop to look at, so work through the shell, files and the web rather than a browser window.');
     computer = lines.join('\n');
   } else if (env.computerMode === 'none') {
     computer = 'There is no shared screen in this install; work through your own tools.';

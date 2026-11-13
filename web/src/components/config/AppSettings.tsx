@@ -10,10 +10,12 @@ import { computerStatusText } from '../DetailsPanel';
 import { Icon } from '../Icon';
 import { ToolkitLogo } from '../ToolkitLogo';
 import { Glyph } from './glyphs';
+import { android, androidInfo, pairAndroid, type AndroidInfo } from '../../lib/android';
 import { ConfirmButton } from './ui';
 
 const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'general', label: 'General' },
+  { id: 'phone', label: 'Phone control' },
   { id: 'computer', label: 'Computer' },
   { id: 'permissions', label: 'Permissions' },
   { id: 'apps', label: 'Connected apps' },
@@ -23,7 +25,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
 /** Full-window settings page, opened from the account menu. */
 export function AppSettings() {
   const f = useFeatures();
-  const sections = SECTIONS.filter((s) => (s.id === 'computer' ? f.computer === 'orgo' : s.id === 'apps' ? f.apps : true));
+  const sections = SECTIONS.filter((s) => (s.id === 'computer' ? f.computer === 'orgo' : s.id === 'apps' ? f.apps : s.id === 'phone' ? f.phone || !!android : true));
   const section = useConfigUI((s) => s.appSettings);
   const close = useConfigUI((s) => s.closeAppSettings);
   const open = useConfigUI((s) => s.openAppSettings);
@@ -48,6 +50,7 @@ export function AppSettings() {
         <button type="button" className="app-settings__close icon-btn" onClick={close} aria-label="Close settings" title="Close (Esc)"><Icon name="close" opacity={0.8} /></button>
         <div className="app-settings__page">
           {section === 'general' && <GeneralSection />}
+          {section === 'phone' && <PhoneSection />}
           {section === 'computer' && <ComputerSection />}
           {section === 'permissions' && <PermissionsSection />}
           {section === 'apps' && <AppsSection />}
@@ -258,6 +261,58 @@ function AppsSection() {
 }
 
 // ---------------------------------------------------------------------------
+
+const APK_URL = 'https://github.com/deezi74/YakkBot/releases/latest/download/yakkbot.apk';
+
+/** The Android app's bridge: what the bots may do on the phone itself, and the switches for it. */
+function PhoneSection() {
+  const [state, setState] = useState<{ paired: boolean; reachable: boolean } | null>(null);
+  const [info, setInfo] = useState<AndroidInfo | null>(() => androidInfo());
+  const refresh = useCallback(() => {
+    setInfo(androidInfo());
+    pairAndroid().then(() => configApi.device()).then((d) => { setState(d); if (!android && d.info) setInfo(d.info as AndroidInfo); }).catch(() => setState({ paired: false, reachable: false }));
+  }, []);
+  useEffect(() => {
+    refresh();
+    // Coming back from Android's settings screens: read the switches again.
+    const onShow = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onShow);
+    return () => document.removeEventListener('visibilitychange', onShow);
+  }, [refresh]);
+
+  const Row = ({ on, title, sub, action, onAction }: { on: boolean | undefined; title: string; sub: string; action?: string; onAction?: () => void }) => (
+    <div className="cfg-row">
+      <span className={`computer-status-dot is-${on ? 'on' : 'off'}`} aria-hidden />
+      <div className="cfg-row__text">
+        <div className="cfg-row__title">{title}</div>
+        <div className="cfg-row__sub">{sub}</div>
+      </div>
+      {action && onAction && <button type="button" className="cfg-btn cfg-btn--secondary" onClick={onAction}>{action}</button>}
+    </div>
+  );
+
+  return (
+    <>
+      <PageHead title="Phone control" sub="With the YakkBot Android app, your bots can use the phone itself: read the screen, tap, type, open apps and read notifications. They ask you before they start." />
+      <section className="cfg-section">
+        <div className="cfg-card">
+          <Row on={state?.reachable} title={state?.reachable ? 'The app is connected' : state?.paired ? 'The app is not answering' : 'The app is not connected'}
+            sub={state?.reachable ? [info?.device, info?.version && `app ${info.version}`].filter(Boolean).join(' · ') : state?.paired ? 'Open the YakkBot app; Android may have stopped it.' : android ? 'Connecting…' : 'Install the YakkBot app and open it once.'}
+            action={!android ? 'Get the app' : undefined} onAction={() => window.open(APK_URL, '_blank')} />
+          {(android || state?.paired) && (
+            <>
+              <Row on={info?.screenControl} title="Screen control" sub={info?.screenControl ? 'Bots can read the screen and tap, swipe and type.' : 'Off. Turn on “YakkBot phone control” in Accessibility settings.'} action={android && !info?.screenControl ? 'Turn on' : undefined} onAction={() => android?.openAccessibilitySettings()} />
+              <Row on={info?.notifications} title="Notifications" sub={info?.notifications ? 'Bots can read and clear notifications.' : 'Off. Allow YakkBot in notification access.'} action={android && !info?.notifications ? 'Turn on' : undefined} onAction={() => android?.openNotificationSettings()} />
+              <Row on={info?.termuxPermission} title="Start YakkBot from the app" sub={info?.termuxPermission ? 'The app starts the server in Termux when you open it and after a restart.' : 'Off. Allow “Run commands in Termux” in the app’s permissions.'} action={android && !info?.termuxPermission ? 'App info' : undefined} onAction={() => android?.openAppSettings()} />
+              <Row on={info?.unrestrictedBattery} title="Runs in the background" sub={info?.unrestrictedBattery ? 'Android will not put the app to sleep.' : 'Android may stop the app when it is in the background.'} action={android && !info?.unrestrictedBattery ? 'Allow' : undefined} onAction={() => android?.requestBattery()} />
+            </>
+          )}
+        </div>
+        <div className="cfg-field__hint">What each bot was allowed to do is listed under Permissions, where you can take it back. Texts, calls, contacts, location and the camera go through the Termux:API app instead.</div>
+      </section>
+    </>
+  );
+}
 
 function AccountSection() {
   const user = useStore((s) => s.user);

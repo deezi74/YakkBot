@@ -1,0 +1,42 @@
+plugins { id 'com.android.application' }
+
+// A release build is signed with your own key when these are set (environment or ~/.gradle/gradle.properties):
+//   YAKK_KEYSTORE (path), YAKK_KEYSTORE_PASSWORD, YAKK_KEY_ALIAS, YAKK_KEY_PASSWORD
+// Without them the debug key is used, which is fine for your own phone.
+def prop = { String k -> System.getenv(k) ?: (project.findProperty(k) as String) }
+def hasKey = prop('YAKK_KEYSTORE') != null
+
+android {
+    namespace 'ai.yakkbot.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'ai.yakkbot.app'
+        minSdk 26
+        targetSdk 34
+        versionCode 2
+        versionName '0.2.0'
+    }
+    signingConfigs {
+        if (hasKey) {
+            own {
+                storeFile file(prop('YAKK_KEYSTORE'))
+                storePassword prop('YAKK_KEYSTORE_PASSWORD')
+                keyAlias prop('YAKK_KEY_ALIAS')
+                keyPassword prop('YAKK_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig hasKey ? signingConfigs.own : signingConfigs.debug
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildFeatures { buildConfig true }
+    lint { abortOnError false; checkReleaseBuilds false }
+}
