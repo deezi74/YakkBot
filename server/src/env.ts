@@ -54,6 +54,8 @@ function sessionSecret(): string {
 
 const port = Number(str('PORT', '8787'));
 const isTermux = !!process.env.TERMUX_VERSION || (process.env.PREFIX ?? '').includes('com.termux');
+/** Running inside the YakkBot Android app's own Linux. */
+const inApp = process.env.YAKK_PLATFORM === 'android-app';
 const hermesHome = str('HERMES_HOME_PRIMARY', path.join(os.homedir(), '.hermes'));
 const orgoComputerId = str('ORGO_COMPUTER_ID');
 const vncPort = Number(str('VNC_PORT', '0'));
@@ -72,6 +74,7 @@ export const env = {
   host: str('HOST', '127.0.0.1'),
   dataDir,
   isTermux,
+  inApp,
   appUrl: str('APP_URL', `http://localhost:${port}`).replace(/\/+$/, ''),
   /** Public URL of this server, used for OAuth callbacks. */
   serverUrl: str('SERVER_URL', `http://localhost:${port}`).replace(/\/+$/, ''),
@@ -145,7 +148,8 @@ export const features = () => ({
   googleLogin: !!env.composioKey,
   passwordLogin: !!env.password,
   devLogin: env.devLogin,
-  phone: env.isTermux,
+  phone: env.isTermux || env.inApp,
+  app: env.inApp,
   telegram: !!env.telegramToken,
 });
 // (Whether the Android app is paired is live state, served by GET /api/device.)

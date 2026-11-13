@@ -33,10 +33,11 @@ import java.util.concurrent.Executors;
 final class Bridge implements Runnable {
     private final Context ctx;
     private final ExecutorService pool = Executors.newFixedThreadPool(4);
+    private final PhoneActions phone;
     private volatile ServerSocket server;
     private volatile boolean running = true;
 
-    Bridge(Context ctx) { this.ctx = ctx.getApplicationContext(); }
+    Bridge(Context ctx) { this.ctx = ctx.getApplicationContext(); this.phone = new PhoneActions(this.ctx); }
 
     void stop() {
         running = false;
@@ -95,6 +96,10 @@ final class Bridge implements Runnable {
             int status = 200;
             try {
                 out = handle(method, path, args);
+            } catch (PhoneActions.NeedPermission e) {
+                Permissions.ask(ctx, e.why, e.perms);
+                status = 409;
+                out = err("The owner has not allowed YakkBot " + e.why + " yet. A notification now asks them; try again after they allow it.");
             } catch (IllegalStateException e) {
                 status = 409; out = err(e.getMessage());
             } catch (Exception e) {
@@ -142,8 +147,8 @@ final class Bridge implements Runnable {
                 .put("device", android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL)
                 .put("screenControl", YakkAccessibilityService.instance != null)
                 .put("notifications", YakkNotificationListener.instance != null)
-                .put("termux", Termux.installed(c))
-                .put("termuxPermission", Termux.permitted(c))
+                .put("phone", true)
+                .put("permissions", new PhoneActions(c).groups())
                 .put("unrestrictedBattery", pm != null && pm.isIgnoringBatteryOptimizations(c.getPackageName()));
     }
 
@@ -158,6 +163,9 @@ final class Bridge implements Runnable {
         switch (path) {
             case "/status":
                 return status(ctx);
+
+            case "/phone":
+                return phone.run(a);
 
             case "/ui/dump":
                 return screen().dump(Math.min(a.optInt("max", 250), 600));

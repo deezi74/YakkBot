@@ -17,6 +17,7 @@ function decide(lastUserText, lastToolOutput) {
   let m;
   if ((m = /^run:\s*([\s\S]+)/.exec(t))) return { think: 'I should run that.', call: { name: 'terminal', args: { command: m[1].trim() } } };
   if ((m = /^remember:\s*([\s\S]+)/.exec(t))) return { call: { name: 'memory', args: { action: 'add', target: 'user', text: m[1].trim() } } };
+  if ((m = /^phone:\s*(\w+)\s*(\{[\s\S]*\})?$/.exec(t))) return { call: { name: 'phone', args: { action: m[1], ...(m[2] ? JSON.parse(m[2]) : {}) } } };
   if ((m = /^screen:\s*(\w+)\s*([\s\S]*)/.exec(t))) return { call: { name: 'device', args: { action: m[1], ...(m[2].trim() ? { text: m[2].trim() } : {}) } } };
   if ((m = /^ask:\s*([\s\S]+)/.exec(t))) return { call: { name: 'ask_user', args: { question: m[1].trim(), options: ['Yes', 'No'] } } };
   return { text: `You said: ${t}` };

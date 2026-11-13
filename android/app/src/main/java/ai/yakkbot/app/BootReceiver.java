@@ -9,7 +9,7 @@ public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (!Prefs.startOnBoot(context)) return;
+        // The service starts the bridge and the server in the app's own Linux.
         BridgeService.start(context);
-        Termux.yakkbot(context, "start");
     }
 }

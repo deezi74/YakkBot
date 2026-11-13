@@ -20,7 +20,8 @@ const fakeBridge = http.createServer((req, res) => {
     const send = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
     if (req.headers.authorization !== `Bearer ${BRIDGE_TOKEN}`) return send(401, { error: 'unauthorized' });
     bridgeCalls.push({ path: req.url, body: JSON.parse(raw || '{}') });
-    if (req.url === '/status') return send(200, { ok: true, screenControl: true });
+    if (req.url === '/status') return send(200, { ok: true, screenControl: true, phone: true });
+    if (req.url === '/phone') return send(200, { ok: true, output: `Text sent to ${JSON.parse(raw).number}.` });
     if (req.url === '/ui/dump') return send(200, { app: 'com.example', screen: { width: 1080, height: 2400 }, nodes: [{ text: 'Send', kind: 'Button', x: 900, y: 2200, tap: true }] });
     if (req.url === '/ui/tap') return send(200, { ok: true, x: 900, y: 2200 });
     return send(409, { error: 'nope' });
@@ -121,6 +122,18 @@ async function run(wire) {
   await api('POST', `/bots/${second.id}/messages`, { text: 'ping' });
   rs = await settle(second.id, (r) => !!lastAssistant(r));
   check('the second bot answers on its own thread', lastAssistant(rs) === 'You said: ping', lastAssistant(rs));
+  // Bot cards: share a bot, bring it back as a new one.
+  await api('POST', `/bots/${second.id}/skills`, { name: 'Morning brief', body: 'Check the weather and my calendar.' });
+  const cardRes = await fetch(`${base}/api/bots/${second.id}/card`, { headers: { cookie } });
+  const botCard = await cardRes.json();
+  check('a bot card carries the look, soul and skills', botCard.format === 'yakkbot-bot/1' && botCard.name === 'Scout' && botCard.soul.includes('Soul') && botCard.skills?.[0]?.name === 'Morning brief' && !('memory' in botCard), JSON.stringify(botCard).slice(0, 300));
+  check('the card downloads as a file', /attachment; filename="Scout\.yakkbot\.json"/.test(cardRes.headers.get('content-disposition') ?? ''));
+  const imported = (await api('POST', '/bots/import', { card: { ...botCard, name: 'Scout Two' } })).json.bot;
+  check('importing a card makes a new bot', imported?.name === 'Scout Two' && imported.id !== second.id, JSON.stringify(imported));
+  const importedSkills = (await api('GET', `/bots/${imported.id}/skills`)).json.skills;
+  check('the imported bot has the skills', importedSkills?.[0]?.name === 'Morning brief');
+  check('a file that is not a card is refused', (await api('POST', '/bots/import', { card: { hello: 1 } })).status === 400);
+  await api('DELETE', `/bots/${imported.id}`);
   check('deleting a bot works', (await api('DELETE', `/bots/${second.id}`)).status === 200);
 
   // The Android app's phone bridge: pair, then use it through the device tool (with an approval).
@@ -145,6 +158,16 @@ async function run(wire) {
     await api('POST', `/approvals/${tapCard.body.approvalId}`, { decision: 'allow' });
     rs = await settle(bot.id, (r) => lastAssistant(r)?.startsWith('Tool said: Tapped'));
     check('the tap reaches the phone bridge', bridgeCalls.some((c) => c.path === '/ui/tap' && c.body.text === 'Send'), JSON.stringify(bridgeCalls));
+  }
+  // Texting goes through the app (it has the SMS permission), after the owner approves it.
+  await api('POST', `/bots/${bot.id}/messages`, { text: 'phone: sms_send {"number":"Mom","text":"on my way"}' });
+  rs = await settle(bot.id, (r) => r.some((x) => x.kind === 'card' && x.body.card === 'approval' && x.body.status === 'pending'));
+  const smsCard = rs.find((x) => x.kind === 'card' && x.body.card === 'approval' && x.body.status === 'pending');
+  check('texting asks first', !!smsCard && /text Mom/.test(smsCard.body.title), JSON.stringify(smsCard?.body));
+  if (smsCard) {
+    await api('POST', `/approvals/${smsCard.body.approvalId}`, { decision: 'allow' });
+    rs = await settle(bot.id, (r) => lastAssistant(r)?.startsWith('Tool said: Text sent'));
+    check('the text is sent through the app', bridgeCalls.some((c) => c.path === '/phone' && c.body.action === 'sms_send' && c.body.text === 'on my way'), JSON.stringify(bridgeCalls.slice(-2)));
   }
   await api('DELETE', '/device');
 

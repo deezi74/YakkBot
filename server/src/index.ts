@@ -21,6 +21,7 @@ import { startIdleWatcher } from './idle.js';
 import { mcpApi } from './mcp.js';
 import { initEngines } from './engine.js';
 import { initTelegram } from './channels/telegram.js';
+import { pairFromEnv } from './device.js';
 
 if (!desSelfTest()) throw new Error('DES self-test failed');
 initSubagents();
@@ -38,7 +39,8 @@ app.route('/api', api);
 app.route('/api', configApi);
 
 // Serve the built web app in production.
-const webDist = path.resolve(new URL('.', import.meta.url).pathname, '../../web/dist');
+// YAKK_WEB_DIST: where the built app is (the Android app ships it beside the bundled server).
+const webDist = process.env.YAKK_WEB_DIST ? path.resolve(process.env.YAKK_WEB_DIST) : path.resolve(new URL('.', import.meta.url).pathname, '../../web/dist');
 if (fs.existsSync(webDist)) {
   app.use('/*', serveStatic({ root: path.relative(process.cwd(), webDist) }));
   app.get('*', (c) => c.html(fs.readFileSync(path.join(webDist, 'index.html'), 'utf8')));
@@ -58,3 +60,4 @@ initProactive(enqueue);
 startIdleWatcher();
 initEngines();
 initTelegram();
+pairFromEnv();

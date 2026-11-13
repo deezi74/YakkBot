@@ -7,7 +7,7 @@ import { env } from '../env.js';
 import { hub } from '../lib/hub.js';
 import { displayEnv, hasLocalDesktop, localScreenshot } from '../computer.js';
 import type { ActivityKind } from '../types.js';
-import { bridge, bridgeUsable } from '../device.js';
+import { bridge, bridgePhone, bridgeUsable } from '../device.js';
 import { ensureHome, entries, MEMORY_LIMIT, readHomeFile, SEP, USER_LIMIT, writeHomeFile } from './home.js';
 import type { Image, ToolSpec } from './llm.js';
 
@@ -173,11 +173,19 @@ const termux = (cmd: string, args: string[] = [], timeout = 30_000, input?: stri
     if (input !== undefined) { child.stdin?.write(input); child.stdin?.end(); }
   });
 
-const PHONE_READ_PRIVATE = new Set(['sms_list', 'contacts', 'call_log', 'location']);
-const PHONE_OUTWARD = new Set(['sms_send', 'call']);
-const PHONE_ACTIONS = ['battery', 'device', 'wifi', 'location', 'notify', 'toast', 'vibrate', 'speak', 'clipboard_get', 'clipboard_set', 'sms_list', 'sms_send', 'call', 'contacts', 'call_log', 'photo', 'torch', 'volume', 'open_url', 'share'] as const;
+const PHONE_READ_PRIVATE = new Set(['sms_list', 'contacts', 'call_log', 'location', 'calendar_events']);
+const PHONE_OUTWARD = new Set(['sms_send', 'call', 'calendar_add']);
+const PHONE_ACTIONS = ['battery', 'device', 'wifi', 'location', 'notify', 'toast', 'vibrate', 'speak', 'clipboard_get', 'clipboard_set', 'sms_list', 'sms_send', 'call', 'contacts', 'call_log', 'photo', 'torch', 'volume', 'open_url', 'share', 'alarm', 'timer', 'calendar_events', 'calendar_add', 'maps'] as const;
+/** Only the YakkBot Android app can do these; Termux:API has no command for them. */
+const APP_ONLY = new Set(['alarm', 'timer', 'calendar_events', 'calendar_add', 'maps']);
 
 async function phone(a: any, ctx: DeviceCtx): Promise<DeviceResult> {
+  // Inside the YakkBot Android app, the app itself does the phone's jobs with Android permissions.
+  if (bridgePhone()) {
+    const r = await bridge('/phone', a ?? {}, 90_000);
+    return { output: String(r.output ?? 'Done.'), ...(r.summary ? { summary: String(r.summary) } : {}), ...(r.image ? { image: { mime: r.mime ?? 'image/jpeg', data: r.image } } : {}) };
+  }
+  if (APP_ONLY.has(a?.action)) return { output: `${a.action} needs the YakkBot Android app. Termux:API cannot do it.`, isError: true };
   const s = (v: unknown) => String(v ?? '');
   switch (a.action) {
     case 'battery': return { output: await termux('termux-battery-status') };
@@ -392,18 +400,20 @@ const BASE: DeviceTool[] = [
 
 const PHONE: DeviceTool = {
   name: 'phone',
-  description: 'Use the Android phone you run on. Actions: battery, device, wifi, location, notify (title, text), toast (text), vibrate (ms), speak (text, read aloud), clipboard_get, clipboard_set (text), sms_list (limit, number), sms_send (number, text), call (number), contacts, call_log (limit), photo (front), torch (on), volume (stream, level), open_url (url), share (path).',
+  description: 'Use the Android phone you run on. Actions: battery, device, wifi, location, notify (title, text), toast (text), vibrate (ms), speak (text, read aloud), clipboard_get, clipboard_set (text), sms_list (limit, number), sms_send (number or contact name, text, sim), call (number or contact name, sim), contacts (query), call_log (limit), photo (front), torch (on), volume (stream, level 0-100), open_url (url), share (text or path), alarm (time like 7:30 or 19:30, label, days like mon,wed), timer (seconds, label), calendar_events (days, query), calendar_add (title, start YYYY-MM-DD HH:MM, end, location, notes), maps (query, mode search or navigate).',
   parameters: obj({
     action: { type: 'string', enum: [...PHONE_ACTIONS] },
     text: { type: 'string' }, title: { type: 'string' }, number: { type: 'string' }, url: { type: 'string' }, path: { type: 'string' },
+    query: { type: 'string' }, time: { type: 'string' }, label: { type: 'string' }, days: { type: 'string' }, seconds: { type: 'number' }, sim: { type: 'string' },
+    start: { type: 'string' }, end: { type: 'string' }, location: { type: 'string' }, notes: { type: 'string' }, mode: { type: 'string' },
     limit: { type: 'number' }, ms: { type: 'number' }, level: { type: 'number' }, stream: { type: 'string' },
     front: { type: 'boolean' }, on: { type: 'boolean' }, precise: { type: 'boolean' },
   }, ['action']),
   activity: 'on_its_computer',
   label: 'Using the phone',
   gate: (a) =>
-    PHONE_OUTWARD.has(a?.action) ? { key: `PHONE_${String(a.action).toUpperCase()}`, title: a.action === 'call' ? `Phone: call ${a.number ?? ''}` : `Phone: text ${a.number ?? ''}` }
-    : PHONE_READ_PRIVATE.has(a?.action) ? { key: `PHONE_${String(a.action).toUpperCase()}`, title: `Phone: read your ${String(a.action).replace('_list', '').replace('_', ' ')}` }
+    PHONE_OUTWARD.has(a?.action) ? { key: `PHONE_${String(a.action).toUpperCase()}`, title: a.action === 'call' ? `Phone: call ${a.number ?? ''}` : a.action === 'calendar_add' ? `Phone: add "${a.title ?? 'an event'}" to your calendar` : `Phone: text ${a.number ?? ''}` }
+    : PHONE_READ_PRIVATE.has(a?.action) ? { key: `PHONE_${String(a.action).toUpperCase()}`, title: `Phone: read your ${String(a.action).replace('_list', '').replace('_events', '').replace('_', ' ')}` }
     : null,
   impl: phone,
 };
@@ -508,7 +518,7 @@ const DEVICE: DeviceTool = {
 };
 
 export const deviceBridgeAvailable = () => bridgeUsable();
-export const phoneAvailable = () => env.isTermux && have('termux-battery-status');
+export const phoneAvailable = () => (env.isTermux && have('termux-battery-status')) || bridgePhone();
 export const screenAvailable = () => hasLocalDesktop() && have('xdotool');
 
 export function deviceTools(): DeviceTool[] {

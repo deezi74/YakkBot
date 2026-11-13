@@ -35,4 +35,16 @@ final class Prefs {
     }
 
     static boolean startOnBoot(Context c) { return sp(c).getBoolean("startOnBoot", true); }
+
+    /** What the bots call the owner. Asked once during setup. */
+    static String ownerName(Context c) { return sp(c).getString("ownerName", "Owner"); }
+    static void setOwnerName(Context c, String name) { sp(c).edit().putString("ownerName", name).apply(); }
+
+    /** Open the app to the home Wi-Fi (so a PC can use it), instead of this phone only. */
+    static boolean lan(Context c) { return sp(c).getBoolean("lan", false); }
+    static void setLan(Context c, boolean on) { sp(c).edit().putBoolean("lan", on).apply(); }
+
+    /** Signed in once in the app's chat window. */
+    static boolean signedIn(Context c) { return sp(c).getBoolean("signedIn", false); }
+    static void setSignedIn(Context c, boolean v) { sp(c).edit().putBoolean("signedIn", v).apply(); }
 }

@@ -53,3 +53,11 @@ SOFTWARE.
 The original UI artwork is restored from the project's design export: bot silhouettes and eyes (`web/artwork/` and `web/src/avatar/shapes.gen.ts`), UI icons and app tiles (`web/public/assets/`), and the favicon. Artwork originating in xAI/Cursor's Grok Bot app and third-party app logos remains the property of its respective owners; the project's MIT license does not grant rights to that artwork. Inclusion does not imply affiliation or endorsement.
 
 App logos supplied at runtime by Composio also remain the property of their respective owners. The Google sign-in mark is a trademark of Google LLC.
+
+## The Android app's built-in Linux
+
+The YakkBot app runs its server in a Linux system inside the app, the way D-Agent does:
+
+- **PRoot** (GPL-2.0, https://github.com/termux/proot), with **libtalloc** (LGPL-3.0) and **libandroid-shmem** (BSD-3-Clause), from the Termux package repository. They ship as separate programs in the APK (`lib*.so`); YakkBot's own code is not affected by their licenses. Source: https://github.com/termux/proot and https://github.com/termux/termux-packages.
+- **Alpine Linux** and its packages (Node.js and others) are downloaded from Alpine's servers on first use, under their own licenses; they are not part of the APK.
+- The server bundle in the APK includes its npm dependencies; their license notices are in `server.mjs.LEGAL.txt` next to it.

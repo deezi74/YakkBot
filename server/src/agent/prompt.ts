@@ -52,14 +52,14 @@ export async function instructionsFor(userId: string, botId: string): Promise<st
 
   let computer: string;
   if (native) {
-    const where = env.isTermux ? `${owner}'s Android phone, inside Termux` : `${owner}'s own machine (${process.platform})`;
+    const where = env.inApp ? `${owner}'s Android phone, inside the YakkBot app's own Linux (Alpine; install packages with apk add)` : env.isTermux ? `${owner}'s Android phone, inside Termux` : `${owner}'s own machine (${process.platform})`;
     const lines = [
       `You run on ${where}. That device is your computer.`,
-      `- terminal runs shell commands there. Your working folder is ${library}. ${env.isTermux ? 'Termux has no root and no /usr: programs live under $PREFIX, and packages install with `pkg install`.' : ''}`.trim(),
+      `- terminal runs shell commands there. Your working folder is ${library}. ${env.isTermux && !env.inApp ? 'Termux has no root and no /usr: programs live under $PREFIX, and packages install with `pkg install`.' : ''}`.trim(),
       '- read_file, write_file and list_files work on its files. web_search and web_fetch reach the web.',
       '- memory keeps durable notes for future conversations. Save what will still matter later: preferences, people, how things are set up. Not the task at hand.',
     ];
-    if (phoneAvailable()) lines.push(`- phone uses the handset itself: notifications, the clipboard, location, SMS, calls, contacts, the camera, speaking aloud. A notification is the right way to reach ${owner} when they are not looking at the app.`);
+    if (phoneAvailable()) lines.push(`- phone uses the handset itself: notifications, the clipboard, location, texts, calls, contacts, calendar, alarms and timers, speaking aloud. A notification is the right way to reach ${owner} when they are not looking at the app.`);
     if (deviceBridgeAvailable()) lines.push(`- device operates the phone's own screen in any app: read what is on it, tap, swipe, type, open apps, read notifications. Use it when there is no better way (a shell command, a connected app or the phone tool is faster and more reliable). ${owner} can see everything you do on the screen.`);
     if (screenAvailable()) lines.push(`- screen shows you the desktop and lets you click and type on it. ${owner} can watch it live in the app and take over the mouse and keyboard.`);
     else if (!deviceBridgeAvailable()) lines.push('- There is no desktop to look at, so work through the shell, files and the web rather than a browser window.');

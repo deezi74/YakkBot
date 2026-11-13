@@ -208,6 +208,6 @@ export function useSelectedBot(): Bot | undefined {
   return useStore((s) => s.bots.find((b) => b.id === s.selectedBotId));
 }
 
-const NONE: Features = { engine: 'native', computer: 'none', apps: false, xSearch: false, voice: false, googleLogin: false, passwordLogin: false, devLogin: false, phone: false, telegram: false };
+const NONE: Features = { engine: 'native', computer: 'none', apps: false, xSearch: false, voice: false, googleLogin: false, passwordLogin: false, devLogin: false, phone: false, app: false, telegram: false };
 /** What this install has switched on. Everything reads as off until the server has said. */
 export const useFeatures = (): Features => useStore((s) => s.features) ?? NONE;
