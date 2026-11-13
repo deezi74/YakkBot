@@ -1,0 +1,30 @@
+{
+  "name": "@yakkbot/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node --disable-warning=ExperimentalWarning dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@composio/core": "^0.28.0",
+    "@composio/openai": "^0.13.0",
+    "@hono/node-server": "^2.1.6",
+    "croner": "^11.0.0",
+    "hono": "^4.13.17",
+    "openai": "^7.53.0",
+    "ws": "^8.22.2",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  }
+}

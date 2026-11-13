@@ -1,0 +1,72 @@
+/* YakkBot additions: new controls, and the phone layout (one pane at a time, like a messaging app). */
+
+.sidebar__brand { position: absolute; left: 20px; top: 20px; font-size: 15px; font-weight: 600; line-height: 20px; letter-spacing: -0.1px; color: var(--color-text-primary); }
+.sidebar.is-collapsed .sidebar__brand { display: none; }
+.chat__back { display: none; position: absolute; left: 12px; top: 12px; }
+.signin__card .btn { width: 100%; }
+.signin__google { margin-top: 12px; }
+.signin__foot { text-align: center; }
+.signin__foot code, .signin__error code { font-family: var(--font-mono-stack); font-size: 11.5px; }
+
+/* engine panel: connecting a model with a key */
+.engine__conn { display: flex; align-items: center; }
+.engine__keylink { margin-left: auto; }
+.engine__key { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 10px; border-top: 0.5px solid var(--color-border-tertiary); }
+.engine__keyinput { width: 100%; text-align: left; }
+.engine__hint { font-size: 12px; line-height: 16px; color: var(--color-text-tertiary); }
+
+/* soul and memory files */
+.cfg-homefiles { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.cfg-homefiles__title { font-size: 14px; margin-bottom: 2px; }
+.cfg-homefile { padding: 0; overflow: hidden; }
+.cfg-homefile__head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; text-align: left; }
+.cfg-homefile__head:hover { background: var(--color-bg-hover); }
+.cfg-homefile__head .cfg-row__text { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; }
+.cfg-homefile__count { flex-shrink: 0; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--color-text-tertiary); }
+.cfg-homefile__body { display: flex; flex-direction: column; gap: 8px; padding: 0 14px 12px; }
+.cfg-homefile__text { width: 100%; min-height: 180px; resize: vertical; font-family: var(--font-mono-stack); font-size: 12.5px; line-height: 18px; }
+.cfg-homefile__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+@supports (height: 100dvh) { html, body, #root { height: 100dvh; } }
+
+@media (max-width: 760px) {
+  /* One pane at a time. */
+  .app .sidebar, .app .sidebar.is-collapsed { width: 100%; border-right: 0; }
+  .app.is-pane-chat .sidebar { display: none; }
+  .app.is-pane-list .chat, .app.is-pane-list .tasks-view, .app.is-pane-list .details { display: none; }
+  .chat { min-width: 0; }
+  .chat__back { display: inline-flex; }
+  .chat__pill-anchor { max-width: calc(100% - 120px); }
+  .sidebar__titlebar .icon-btn--plain { display: none; }
+  .sidebar__scroll { padding-bottom: 56px; }
+  .sidebar__footer { padding-bottom: max(16px, env(safe-area-inset-bottom)); height: auto; min-height: 52px; }
+  .bot-row { height: 62px; }
+
+  /* The details panel covers the chat instead of sitting beside it. */
+  .details { position: fixed; inset: 0; z-index: 60; width: 100%; border-left: 0; }
+
+  .transcript { padding-left: 12px; padding-right: 12px; }
+  .composer-area { padding: 0 10px max(10px, env(safe-area-inset-bottom)); }
+  /* 16px stops mobile browsers from zooming the page when a field takes focus. */
+  .composer__input, .text-input, .engine__model, input, textarea, select { font-size: 16px; }
+
+  /* Dialogs become sheets. */
+  .modal-root { padding: 0; align-items: flex-end; }
+  .modal-root:has(.search-modal) { align-items: flex-start; padding-top: 0; }
+  .modal { width: 100% !important; max-width: 100% !important; max-height: 92dvh; border-radius: 20px 20px 0 0; }
+  .bot-settings { height: 92dvh; }
+  .bot-settings__body { flex-direction: column; }
+  .cfg-page { padding: 16px 14px 24px; }
+  .cfg-nav { width: auto; flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 0.5px solid var(--color-border-tertiary); padding: 8px; scrollbar-width: none; }
+  .cfg-nav__item { flex-shrink: 0; width: auto; white-space: nowrap; }
+  .app-settings { flex-direction: column; }
+  .app-settings__nav { width: auto; flex-direction: row; align-items: center; overflow-x: auto; padding: 10px 56px 10px 10px; border-right: 0; border-bottom: 0.5px solid var(--color-border-tertiary); scrollbar-width: none; }
+  .app-settings__nav > * { flex-shrink: 0; white-space: nowrap; }
+  .app-settings__back { margin-bottom: 0; }
+  .app-settings__heading { display: none; }
+  .app-settings__page { padding: 24px 16px 48px; }
+  .tasks-view__inner { padding: 16px 12px 32px; }
+  .viewer__stage { padding: 4px 8px 16px; }
+  .signin { align-items: stretch; background: var(--color-bg-chrome); }
+  .signin__card { width: 100%; max-width: 100%; justify-content: center; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+}
