@@ -136,3 +136,8 @@
 .get-computer__bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--bot-action, #0A84FF); transition: width 400ms ease-out; }
 .get-computer__bar.is-busy > i { animation: bar-slide 1.4s ease-in-out infinite; }
 @keyframes bar-slide { from { left: -30%; } to { left: 100%; } }
+
+.update-banner { display: flex; align-items: center; gap: 8px; margin: 6px 8px 8px; padding: 8px 8px 8px 12px; border-radius: 12px; background: var(--color-text-primary); color: var(--color-bg-pane); font-size: 13px; font-weight: 500; }
+.update-banner > span { flex: 1; min-width: 0; }
+.update-banner__btn { height: 28px; padding: 0 12px; border-radius: 999px; background: var(--color-bg-pane); color: var(--color-text-primary); font-weight: 700; font-size: 12.5px; }
+.update-banner__x { width: 26px; height: 26px; border-radius: 50%; color: inherit; opacity: .7; font-size: 16px; }

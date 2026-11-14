@@ -1,0 +1,17 @@
+Categories:
+  - Connectivity
+  - System
+License: MIT
+AuthorName: YakkBot
+WebSite: https://github.com/deezi74/YakkBot
+SourceCode: https://github.com/deezi74/YakkBot
+IssueTracker: https://github.com/deezi74/YakkBot/issues
+Name: YakkBot
+Summary: Your team of AI agents, texting-style, on your phone
+Description: |-
+  YakkBot is a team of AI agents you text like friends. Each Bot has its own
+  soul and memory, its own computer you can watch and take over, skills it
+  learns as it works, and it can use your phone, email and GitHub with your OK.
+
+  Everything can run free and on the phone: AI models downloaded to the device
+  (GGUF), a built-in Linux computer, and the phone's own voice.

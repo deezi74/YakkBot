@@ -14,6 +14,7 @@ import { PhoneModels } from './PhoneModels';
 import { AiModels } from './AiModels';
 import { VoicePage } from './VoicePage';
 import { AccountsPage } from './AccountsPage';
+import { UpdateCard } from '../UpdateCard';
 import { android, androidInfo, pairAndroid, type AndroidInfo } from '../../lib/android';
 import { ConfirmButton } from './ui';
 import { ComputerSetupCard } from './ComputerSetup';
@@ -126,6 +127,10 @@ function GeneralSection() {
           })}
         </div>
         <div className="cfg-field__hint">System follows your device’s light or dark setting.</div>
+      </section>
+      <section className="cfg-section">
+        <div className="cfg-section__label">Updates</div>
+        <UpdateCard />
       </section>
     </>
   );
