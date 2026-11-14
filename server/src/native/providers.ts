@@ -1,5 +1,5 @@
 import { db, now } from '../db.js';
-import { env } from '../env.js';
+import { env, getAppSettings } from '../env.js';
 import type { EngineProvider } from '../types.js';
 import { bridge, pairing, appEngine, refreshAppEngine } from '../device.js';
 import { engine as localEngine, installedModels } from './localModels.js';
@@ -126,12 +126,16 @@ export async function providerModels(id: string): Promise<string[]> {
 export function defaultModel(id: string): string | null {
   const def = providerDef(id);
   if (!def) return null;
+  const app = getAppSettings();
+  if (app.aiProvider === id && app.aiModel) return app.aiModel;
   if (def.id === 'phone') return stored(id)?.default_model || phoneCache.files[0] || null;
   return stored(id)?.default_model || process.env[`${id.toUpperCase()}_MODEL`] || def.models[0] || modelCache.get(id)?.models[0] || null;
 }
 
 /** The provider a bot uses when it has not picked one: the first that can run. */
 export function defaultProvider(): string | null {
+  const chosen = getAppSettings().aiProvider;
+  if (chosen && providerConnected(chosen)) return chosen;
   const preferred = process.env.YAKK_PROVIDER;
   if (preferred && providerConnected(preferred)) return preferred;
   return PROVIDERS.find((p) => providerConnected(p.id))?.id ?? null;

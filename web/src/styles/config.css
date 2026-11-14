@@ -225,3 +225,8 @@
 .cfg-inline-form .text-input { flex: 1; min-width: 0; }
 .setup-job { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; align-items: flex-start; }
 .setup-job__log { max-width: 100%; max-height: 180px; overflow: auto; margin: 0; padding: 8px 10px; border-radius: 8px; background: #00000010; font-size: 11px; line-height: 15px; white-space: pre-wrap; word-break: break-all; }
+.ai-field { display: grid; gap: 4px; font-size: 12px; color: var(--color-text-secondary); }
+.ai-field select, .ai-field input { width: 100%; }
+.ai-provider { display: flex; align-items: center; gap: 12px; }
+.ai-form { flex-wrap: wrap; }
+.ai-form .text-input { flex: 1 1 200px; }

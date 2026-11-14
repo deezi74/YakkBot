@@ -19,7 +19,7 @@ import { MEMORY_LIMIT, USER_LIMIT, readHomeFile, writeHomeFile, type HomeFile } 
 import { bridge, BridgeError, bridgeStatus, pair, unpair, appEngine, refreshAppEngine } from './device.js';
 import { forgetPhoneModels } from './native/providers.js';
 import { CATALOG, cancelDownload, deleteModel, hubFiles, localStatus, searchHub, startDownload, stopModel } from './native/localModels.js';
-import { PROVIDERS, listProviders, removeProviderKey, setProviderKey } from './native/providers.js';
+import { PROVIDERS, defaultModel, defaultProvider, listProviders, removeProviderKey, setProviderKey } from './native/providers.js';
 import { listMemories } from './engine-memory.js';
 import { idleConfig, viewerCount } from './idle.js';
 import type { LibraryFile, Skill } from './types.js';
@@ -372,6 +372,26 @@ configApi.put('/bots/:id/home/:file', async (c) => {
 // ---------- model providers of the built-in engine ----------
 
 configApi.get('/providers', async (c) => c.json({ providers: await listProviders() }));
+
+/** The model every bot uses unless it picked its own, chosen in Settings › AI models. */
+configApi.get('/providers/defaults', (c) => {
+  const s = getAppSettings();
+  return c.json({ provider: defaultProvider(), model: defaultProvider() ? defaultModel(defaultProvider()!) : null, chosen: { provider: s.aiProvider ?? null, model: s.aiModel ?? null } });
+});
+configApi.put('/providers/defaults', async (c) => {
+  const p = await c.req.json<{ provider?: string | null; model?: string | null; applyToAll?: boolean }>().catch(() => ({} as any));
+  const provider = typeof p.provider === 'string' && PROVIDERS.some((x) => x.id === p.provider) ? p.provider : undefined;
+  const model = typeof p.model === 'string' && p.model.trim() ? p.model.trim().slice(0, 160) : undefined;
+  setAppSettings({ aiProvider: provider, aiModel: provider ? model : undefined });
+  // Every bot follows the default: their own picks are cleared.
+  if (p.applyToAll) {
+    const user = c.get('user');
+    const ids = (db.prepare("SELECT id FROM bots WHERE user_id=? AND COALESCE(kind,'agent')<>'room'").all(user.id) as any[]).map((r) => r.id);
+    db.prepare("UPDATE bots SET provider=NULL, model=NULL, updated_at=? WHERE user_id=? AND COALESCE(kind,'agent')<>'room'").run(now(), user.id);
+    for (const id of ids) emitBot(id);
+  }
+  return c.json({ ok: true, provider: defaultProvider(), model: defaultProvider() ? defaultModel(defaultProvider()!) : null });
+});
 
 configApi.put('/providers/:id', async (c) => {
   const id = c.req.param('id');

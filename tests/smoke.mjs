@@ -224,6 +224,13 @@ async function run(wire) {
   check('unfriending removes both sides', !(await api('GET', `/bots/${pal.id}/connections`)).json.connections.length);
   await api('DELETE', `/bots/${pal.id}`);
 
+  // Settings › AI models: one default for all bots.
+  const provs = (await api('GET', '/providers')).json.providers.filter((p) => p.connected && p.id !== 'phone');
+  const setDef = await api('PUT', '/providers/defaults', { provider: provs[0].id, model: 'model-x', applyToAll: true });
+  const defs = (await api('GET', '/providers/defaults')).json;
+  check('a default model for all bots can be set in Settings', setDef.status === 200 && defs.provider === provs[0].id && defs.model === 'model-x', JSON.stringify(defs));
+  await api('PUT', '/providers/defaults', { provider: null, model: null });
+
   const setup = (await api('GET', '/computer/setup')).json;
   check('the computer page reports where bots work', ['none', 'local', 'orgo'].includes(setup.mode) && setup.maxBots > 0, JSON.stringify(setup));
   check('Orgo setup without a key asks for one', (await api('POST', '/computer/orgo/key', {})).status === 400);

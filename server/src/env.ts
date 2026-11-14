@@ -62,7 +62,7 @@ const vncPort = Number(str('VNC_PORT', '0'));
 // ---------- settings made in the app (Settings > Computer) ----------
 // Kept in <YAKK_HOME>/settings.json (mode 600) so they apply without editing .env or restarting.
 
-interface AppSettings { computer?: 'none' | 'local' | 'orgo'; orgoKey?: string; orgoComputerId?: string; orgoComputerName?: string }
+interface AppSettings { computer?: 'none' | 'local' | 'orgo'; orgoKey?: string; orgoComputerId?: string; orgoComputerName?: string; aiProvider?: string; aiModel?: string }
 const settingsFile = path.join(dataDir, 'settings.json');
 let appSettings: AppSettings = {};
 try { appSettings = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch { /* none yet */ }
