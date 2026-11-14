@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { configApi } from '../../lib/configApi';
+import { SetupJobButton } from './SetupJob';
 import { useStore } from '../../store';
 
 interface CatalogModel { id: string; name: string; maker: string; file: string; bytes: number; minRamGb: number; tag: string; note: string; fits: boolean }
@@ -96,7 +97,8 @@ export function PhoneModels() {
       {!s.engine && (
         <div className="card__error">
           The model engine (llama.cpp) is not installed yet, so downloaded models can't run.{' '}
-          {s.engineHint ? <>Install it: <code>{s.engineHint}</code>, then restart YakkBot (<code>yakkbot restart</code>).</> : 'Update the YakkBot app.'}
+          {s.engineHint ? <>Tap below to install it, or run <code>{s.engineHint}</code> yourself.</> : 'Update the YakkBot app.'}
+          {s.engineHint && <SetupJobButton job="engine" label="Install the model engine" onDone={load} />}
         </div>
       )}
       {note && <div className="cfg-field__hint" role="status">{note}</div>}

@@ -140,3 +140,51 @@
    scaled frame would leave the picture slightly too small until the next resize. */
 .viewer__stage .screen__body { pointer-events: auto; animation: rise 200ms var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .viewer__stage .screen__body { animation: none; } }
+
+/* ---------- the bot's frame: a colored bezel with a doodle pattern, a caption, and a cursor label ---------- */
+.screen { --bezel: 10px; --caption-h: 34px; }
+.screen.is-driving { --caption-h: 0px; }
+.screen__body {
+  padding: var(--bezel) var(--bezel) 0;
+  background-color: var(--bot-action);
+  /* Original doodles (dots, rings, plus signs, squiggles), drawn faintly over the bot's color. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96' fill='none' stroke='%23ffffff' stroke-opacity='.22' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='14' cy='16' r='5'/%3E%3Cpath d='M58 10v12M52 16h12'/%3E%3Cpath d='M10 60c6-6 12 6 18 0s12 6 18 0'/%3E%3Ccircle cx='76' cy='56' r='2.5' fill='%23ffffff' fill-opacity='.22'/%3E%3Cpath d='M44 82l6-6 6 6-6 6z'/%3E%3Ccircle cx='84' cy='86' r='4'/%3E%3C/svg%3E");
+  background-size: 96px 96px;
+}
+.screen__body > .screen__view { border-radius: 14px; overflow: hidden; }
+.screen--stage .screen__body, .screen.is-fullscreen .screen__body {
+  width: min(100cqw, calc((100cqh - var(--chin-h) - var(--caption-h) - var(--bezel)) * var(--screen-ratio) + 2 * var(--bezel)));
+}
+.screen.is-driving .screen__body { padding-bottom: 0; }
+.screen__caption {
+  display: flex; align-items: center; gap: 7px; height: var(--caption-h); padding: 0 6px; min-width: 0;
+  color: var(--bot-on-action); font-size: 13px; line-height: 18px;
+}
+.screen__caption-name { font-weight: 600; white-space: nowrap; }
+.screen__caption-dot { opacity: 0.6; }
+.screen__caption-doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9; }
+.screen__caption-doing.is-busy { animation: caption-pulse 1.6s ease-in-out infinite; }
+@keyframes caption-pulse { 50% { opacity: 0.55; } }
+.screen__cursor {
+  position: absolute; z-index: 3; pointer-events: none; display: flex; align-items: flex-start; gap: 2px;
+  transform: translate(-3px, -3px); transition: left 380ms var(--ease-out), top 380ms var(--ease-out);
+}
+.screen__cursor svg { fill: var(--bot-action); stroke: #FFFFFF; stroke-width: 1.6; filter: drop-shadow(0 1px 2px #00000066); }
+.screen__cursor-label {
+  margin-top: 14px; padding: 3px 9px; border-radius: var(--radius-full); white-space: nowrap;
+  background: var(--bot-action); color: var(--bot-on-action); font-size: 12px; font-weight: 600; line-height: 16px;
+  box-shadow: 0 2px 8px #00000040; animation: cursor-in 200ms var(--ease-out);
+}
+@keyframes cursor-in { from { opacity: 0; transform: scale(0.9); } }
+
+/* ---------- the team's computer: every bot's screen side by side ---------- */
+.team-computer { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: #0F0F10; color: #FFFFFF; }
+.team-computer__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; }
+.team-computer__title { font-size: 16px; font-weight: 600; }
+.team-computer__sub { font-size: 13px; opacity: 0.65; }
+.team-computer__grid {
+  flex: 1; overflow: auto; padding: 8px 18px 24px;
+  display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); align-content: start;
+}
+.team-computer__empty { padding: 40px 18px; text-align: center; opacity: 0.7; }
+@media (max-width: 600px) { .team-computer__grid { padding: 4px 16px 20px; gap: 14px; } }

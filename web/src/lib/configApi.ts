@@ -32,6 +32,18 @@ export interface ComputerDetails {
   hibernation: { idleMinutes: number; viewers: number; dryRun: boolean };
 }
 
+export interface Connection { id: string; kind: 'bot' | 'person'; otherBotId: string | null; name: string; relation: string; note: string; createdAt: number }
+
+export interface SetupJob { id: string; state: 'idle' | 'running' | 'done' | 'failed'; log: string; startedAt: number | null; available: boolean; why: string | null }
+
+export interface ComputerSetup {
+  mode: 'none' | 'local' | 'orgo';
+  maxBots: number;
+  orgo: { hasKey: boolean; computerId: string; computerName: string };
+  local: { available: boolean; app: boolean; termux: boolean };
+}
+export interface OrgoWorkspace { id: string; name: string; computers: { id: string; name: string; status: string }[] }
+
 export interface HomeFileInfo { key: 'soul' | 'memory' | 'user'; title: string; limit: number; text: string }
 
 export type BotPatch = Partial<Pick<Bot, 'name' | 'label' | 'description' | 'instructions' | 'avatarShape' | 'avatarColor' | 'effort' | 'mode'>>;
@@ -60,6 +72,17 @@ export const configApi = {
   downloadFile: (botId: string, path: string) => req<{ url: string }>('POST', `/bots/${botId}/files/download`, { path }),
 
   computerDetails: () => req<ComputerDetails>('GET', '/computer/details'),
+  setupJob: (job: 'engine' | 'desktop') => req<SetupJob>('GET', `/setup/${job}`),
+  startSetupJob: (job: 'engine' | 'desktop') => req<SetupJob>('POST', `/setup/${job}`),
+  connections: (botId: string) => req<{ connections: Connection[] }>('GET', `/bots/${botId}/connections`).then((r) => r.connections),
+  addConnection: (botId: string, c: { kind: 'bot' | 'person'; otherBotId?: string; name?: string; relation?: string; note?: string }) => req<{ connections: Connection[] }>('POST', `/bots/${botId}/connections`, c).then((r) => r.connections),
+  removeConnection: (botId: string, id: string) => req<{ connections: Connection[] }>('DELETE', `/bots/${botId}/connections/${id}`).then((r) => r.connections),
+  computerSetup: () => req<ComputerSetup>('GET', '/computer/setup'),
+  orgoKey: (key?: string) => req<{ workspaces: OrgoWorkspace[] }>('POST', '/computer/orgo/key', { key }),
+  orgoUse: (computerId: string, name: string) => req<{ ok: true }>('POST', '/computer/orgo/use', { computerId, name }),
+  orgoCreate: (workspaceId: string) => req<{ ok: true; computerId: string }>('POST', '/computer/orgo/create', { workspaceId }),
+  orgoForget: () => req<{ ok: true }>('POST', '/computer/orgo/forget'),
+  computerMode: (mode: 'none' | 'local' | 'orgo') => req<{ ok: true }>('POST', '/computer/mode', { mode }),
   wake: () => req<{ computer: ComputerState }>('POST', '/computer/ensure'),
   sleep: () => req<{ computer: ComputerState }>('POST', '/computer/suspend'),
   resetScreen: (botId: string) => req<{ ok: true }>('POST', `/bots/${botId}/screen/reset`),

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { db, now } from './db.js';
 import { hub } from './lib/hub.js';
 import type { Bot, LiveState, Row, RowBody, RowKind, Routine, Task } from './types.js';
@@ -118,9 +119,81 @@ export function listRows(botId: string, opts: { beforeSeq?: number; limit?: numb
 
 export function clearConversation(botId: string) {
   const b = getBotRow(botId);
-  db.prepare('UPDATE bots SET generation = generation + 1, next_seq = 1 WHERE id=?').run(botId);
+  // A new conversation goes after every earlier one, even when an older one is open.
+  const top = Math.max(b.generation, (db.prepare('SELECT MAX(generation) g FROM rows WHERE bot_id=?').get(botId) as any).g ?? 0, (db.prepare('SELECT MAX(generation) g FROM llm_items WHERE bot_id=?').get(botId) as any).g ?? 0);
+  db.prepare('UPDATE bots SET generation = ?, next_seq = 1 WHERE id=?').run(top + 1, botId);
   db.prepare('DELETE FROM pending_turns WHERE bot_id=?').run(botId);
-  hub.emit(b.user_id, { type: 'cleared', botId, generation: b.generation + 1 });
+  hub.emit(b.user_id, { type: 'cleared', botId, generation: top + 1 });
+}
+
+// ---------- conversations: every "New chat" keeps the old one, which can be reopened ----------
+
+export interface Conversation { generation: number; title: string; preview: string; messages: number; startedAt: number; updatedAt: number; current: boolean }
+
+export function listConversations(botId: string): Conversation[] {
+  const b = getBotRow(botId);
+  const gens = db.prepare('SELECT generation g, SUM(kind=\'message\') n, MIN(created_at) s, MAX(created_at) u FROM rows WHERE bot_id=? GROUP BY generation ORDER BY u DESC LIMIT 100').all(botId) as any[];
+  const firstUser = db.prepare("SELECT body FROM rows WHERE bot_id=? AND generation=? AND kind='message' AND body LIKE '%\"role\":\"user\"%' ESCAPE '\\' ORDER BY seq ASC LIMIT 1");
+  const last = db.prepare("SELECT body FROM rows WHERE bot_id=? AND generation=? AND kind='message' ORDER BY seq DESC LIMIT 1");
+  const text = (r: any) => { try { return String(JSON.parse(r?.body ?? '{}').text ?? '').replace(/\s+/g, ' ').trim(); } catch { return ''; } };
+  const list: Conversation[] = gens.map((g) => {
+    const t = text(firstUser.get(botId, g.g));
+    return { generation: g.g, title: (t || (g.n ? 'Conversation' : 'New chat')).slice(0, 60), preview: text(last.get(botId, g.g)).slice(0, 90), messages: g.n, startedAt: g.s, updatedAt: g.u, current: g.g === b.generation };
+  });
+  if (!list.some((c) => c.current)) list.unshift({ generation: b.generation, title: 'New chat', preview: '', messages: 0, startedAt: now(), updatedAt: now(), current: true });
+  return list;
+}
+
+/** Reopen an earlier conversation: the bot picks it up where it left off, with that conversation's history. */
+export function openConversation(botId: string, generation: number) {
+  const b = getBotRow(botId);
+  if (generation === b.generation) return;
+  const has = db.prepare('SELECT MAX(seq) m FROM rows WHERE bot_id=? AND generation=?').get(botId, generation) as any;
+  if (has?.m == null) throw new Error('No such conversation.');
+  db.prepare('UPDATE bots SET generation = ?, next_seq = ? WHERE id=?').run(generation, has.m + 1, botId);
+  db.prepare('DELETE FROM pending_turns WHERE bot_id=?').run(botId);
+  hub.emit(b.user_id, { type: 'cleared', botId, generation, reload: true });
+}
+
+export function deleteConversation(botId: string, generation: number) {
+  const b = getBotRow(botId);
+  db.prepare('DELETE FROM rows WHERE bot_id=? AND generation=?').run(botId, generation);
+  db.prepare('DELETE FROM llm_items WHERE bot_id=? AND generation=?').run(botId, generation);
+  if (generation === b.generation) clearConversation(botId);
+}
+
+// ---------- social connections: the bots and people a bot knows ----------
+
+export interface Connection { id: string; kind: 'bot' | 'person'; otherBotId: string | null; name: string; relation: string; note: string; createdAt: number }
+const toConnection = (r: any): Connection => ({ id: r.id, kind: r.kind, otherBotId: r.other_bot_id, name: r.other_name ?? r.name, relation: r.relation, note: r.note, createdAt: r.created_at });
+
+export function listConnections(botId: string): Connection[] {
+  return (db.prepare('SELECT c.*, o.name other_name FROM connections c LEFT JOIN bots o ON o.id = c.other_bot_id WHERE c.bot_id=? ORDER BY c.kind, c.created_at').all(botId) as any[]).map(toConnection);
+}
+
+/** Bots connect both ways (they become friends); people are known only to the bot that met them. */
+export function addConnection(botId: string, c: { kind: 'bot' | 'person'; otherBotId?: string; name?: string; relation?: string; note?: string }) {
+  const put = db.prepare('INSERT INTO connections (id, bot_id, kind, other_bot_id, name, relation, note, created_at) VALUES (?,?,?,?,?,?,?,?)');
+  const rel = String(c.relation ?? '').slice(0, 60), note = String(c.note ?? '').slice(0, 500);
+  if (c.kind === 'bot') {
+    if (!c.otherBotId || c.otherBotId === botId) throw new Error('Pick another Bot.');
+    const exists = db.prepare("SELECT 1 FROM connections WHERE bot_id=? AND kind='bot' AND other_bot_id=?");
+    if (!exists.get(botId, c.otherBotId)) put.run(crypto.randomUUID(), botId, 'bot', c.otherBotId, '', rel, note, now());
+    if (!exists.get(c.otherBotId, botId)) put.run(crypto.randomUUID(), c.otherBotId, 'bot', botId, '', rel, '', now());
+    return;
+  }
+  const name = String(c.name ?? '').trim().slice(0, 80);
+  if (!name) throw new Error('Give the person a name.');
+  const same = db.prepare("SELECT id FROM connections WHERE bot_id=? AND kind='person' AND lower(name)=lower(?)").get(botId, name) as any;
+  if (same) db.prepare('UPDATE connections SET relation=?, note=? WHERE id=?').run(rel, note, same.id);
+  else put.run(crypto.randomUUID(), botId, 'person', null, name, rel, note, now());
+}
+
+export function removeConnection(botId: string, id: string) {
+  const r = db.prepare('SELECT * FROM connections WHERE id=? AND bot_id=?').get(id, botId) as any;
+  if (!r) return;
+  db.prepare('DELETE FROM connections WHERE id=?').run(id);
+  if (r.kind === 'bot') db.prepare("DELETE FROM connections WHERE bot_id=? AND kind='bot' AND other_bot_id=?").run(r.other_bot_id, botId);
 }
 
 // ---------- LLM history (Responses API input items) ----------

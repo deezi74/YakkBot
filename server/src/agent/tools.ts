@@ -1,9 +1,10 @@
+import fs from 'node:fs';
 import { db, now } from '../db.js';
 import { newId } from '../lib/ids.js';
 import { hub } from '../lib/hub.js';
 import { box } from '../box.js';
 import { env } from '../env.js';
-import { appendRow, getBotRow, listRoutines, toRoutine, describeCron } from '../store.js';
+import { addConnection, appendRow, getBotRow, listConnections, listRoutines, removeConnection, toRoutine, describeCron } from '../store.js';
 import { executeComposio, innerToolSlugs, isReadOnlySlug, toolkitInfo } from '../composio.js';
 import { scheduleRoutine, unscheduleRoutine } from '../routines.js';
 import { createEventRoutine, deleteEventTrigger, describeEvent, listTriggerTypes } from '../triggers.js';
@@ -101,7 +102,11 @@ export const TOOLS: ToolDef[] = [
     impl: async (a, ctx) => {
       const name = String(a.filename).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'file.txt';
       const file = `${LIBRARY_ROOT}/${ctx.botId}/${name}`;
-      await box.writeFile(file, String(a.content ?? ''));
+      // The built-in engine keeps each bot's Library on this device; a Hermes bot's lives on its computer.
+      if (env.engine === 'native') {
+        fs.mkdirSync(`${LIBRARY_ROOT}/${ctx.botId}`, { recursive: true });
+        fs.writeFileSync(file, String(a.content ?? ''));
+      } else await box.writeFile(file, String(a.content ?? ''));
       return { output: JSON.stringify({ ok: true, path: file }), summary: `Saved ${name}` };
     },
   },
@@ -228,6 +233,43 @@ export const TOOLS: ToolDef[] = [
       db.prepare('DELETE FROM routines WHERE id=? AND bot_id=?').run(a.routine_id, ctx.botId);
       hub.emit(ctx.userId, { type: 'routines', botId: ctx.botId });
       return { output: 'Deleted.' };
+    },
+  },
+  {
+    name: 'connect',
+    description: 'Add a social connection. kind "person": remember someone in the user\'s life (name, relation such as "sister" or "coworker at Acme", and a short note); updating the same name replaces the note. kind "bot": connect with another bot on the team by name, so you become friends and both know each other.',
+    parameters: obj({
+      kind: { type: 'string', enum: ['person', 'bot'] },
+      name: { type: 'string', description: 'The person\'s name, or the other bot\'s name.' },
+      relation: { type: 'string' },
+      note: { type: 'string' },
+    }, ['kind', 'name']),
+    activity: 'remembering',
+    label: 'Making a connection',
+    impl: async (a, ctx) => {
+      try {
+        if (a.kind === 'bot') {
+          const other = botByName(ctx.userId, String(a.name ?? ''));
+          if (!other) return { output: `No bot named ${a.name} on the team.`, isError: true };
+          addConnection(ctx.botId, { kind: 'bot', otherBotId: other.id, relation: a.relation, note: a.note });
+        } else addConnection(ctx.botId, { kind: 'person', name: a.name, relation: a.relation, note: a.note });
+        hub.emit(ctx.userId, { type: 'social', botId: ctx.botId });
+        return { output: 'Connected.' };
+      } catch (e: any) { return { output: String(e?.message ?? e), isError: true }; }
+    },
+  },
+  {
+    name: 'disconnect',
+    description: 'Remove a social connection (a person or another bot) by name.',
+    parameters: obj({ name: { type: 'string' } }, ['name']),
+    activity: 'remembering',
+    label: 'Removing a connection',
+    impl: async (a, ctx) => {
+      const c = listConnections(ctx.botId).find((x) => x.name.toLowerCase() === String(a.name ?? '').trim().toLowerCase());
+      if (!c) return { output: `No connection named ${a.name}.`, isError: true };
+      removeConnection(ctx.botId, c.id);
+      hub.emit(ctx.userId, { type: 'social', botId: ctx.botId });
+      return { output: 'Removed.' };
     },
   },
   {

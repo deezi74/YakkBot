@@ -164,7 +164,9 @@ async function lease(userId: string, botId: string): Promise<BotScreen> {
   const taken = new Set((db.prepare('SELECT screen_id FROM screens').all() as any[]).map((r) => r.screen_id as string));
   const existing = await orgo.listScreens(id);
   let screen: OrgoScreen | undefined;
-  if (isPrimaryEngine(botId)) {
+  // The Hermes main agent owns the computer's own screen. With the built-in engine the first bot takes it,
+  // so all four of Orgo's screens are used: one per bot.
+  if (isPrimaryEngine(botId) || (env.engine === 'native' && !taken.has('default'))) {
     screen = existing.find((s) => s.id === 'default' || s.default) ?? ({ id: 'default', display: ':99', width: 0, height: 0, default: true } as OrgoScreen);
     screen = { ...screen, id: 'default' };
   } else {

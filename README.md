@@ -159,6 +159,43 @@ This installs XFCE with a VNC server (a large download on a phone), and the app 
 the screen with a take-control mode. Bots get a `screen` tool (screenshot, click, type) that works
 with models that accept images.
 
+## What it combines
+
+| From | In YakkBot |
+|---|---|
+| Grok Bot | Texting-style chats, many bots, voice mode (mic + spoken replies), live X search (`x_search`, with an xAI key) |
+| Muse | Social connections: bots befriend each other (both ways) and remember the people in your life (Bot settings › Connections, or just mention them in chat); editable soul and memory files (Bot settings › Memories) |
+| Dots | Each bot's own computer screen you can watch or take over, the live thinking indicator, and multi-session chats: **New chat** keeps the old one, and every earlier conversation can be reopened or deleted |
+
+On a phone, **swipe right** anywhere in a chat to slide in your bots, the chats with the current
+bot, your profile circle and settings; swipe left to go back.
+
+## The bots' computer
+
+Open **Settings › Computer** and pick where your bots work. Everything is set up in the app:
+
+- **This device**: a Linux desktop right on the phone or PC. In the Android app, install it under
+  Settings › Phone control; in Termux or on Linux, tap **Set up a desktop on this device**
+  (runs `yakkbot desktop setup`, starts it and restarts YakkBot).
+- **Orgo cloud computer**: paste your Orgo API key, then pick a Linux computer or tap
+  **Create a new YakkBot computer** (4 cores, 16 GB). It is one computer shared by the team, with
+  **one screen per bot**: the first bot uses the main screen and each next bot gets a new screen,
+  up to 4 bots. Each bot drives only its own screen (screenshot, click, type, keys, scroll, drag,
+  open a page in its own Chrome, run a shell command).
+- **No computer**: bots chat, search and use your phone, with no screen.
+
+Each screen sits in its bot's colored frame with a caption of what the bot is doing and a label by
+the pointer when it clicks or types. **Team computer** in the sidebar shows every bot's screen side
+by side; open one to watch it large or press **Take control**, then hand it back. The Orgo key and
+choice are kept in `~/.yakkbot/settings.json` (mode 600).
+
+## Local models (GGUF)
+
+**Settings › On-device models** lists suggested models sized for your device's memory, searches
+Hugging Face for any GGUF, downloads it and runs it with llama.cpp, offline. Pick **On this device**
+as a bot's provider. The Android app ships its own engine; in Termux or on Linux, tap
+**Install the model engine** on that page (`pkg install llama-cpp` in Termux).
+
 ## Settings
 
 Everything lives in `~/.yakkbot/` (mode 700): `.env` (settings and keys), `yakkbot.db` (bots,
@@ -173,7 +210,7 @@ conversations), `engines/<bot>/` (soul and memory files), `files/<bot>/` (each b
 | `YAKK_ENGINE` | `native` | `hermes` runs bots on Hermes Agent gateways instead |
 | `YAKK_COMPUTER` | auto | `none`, `local` (VNC on this device) or `orgo` |
 | `YAKK_CONTEXT_CHARS` | `400000` | Conversation size at which older turns are summarised |
-| `MAX_BOTS` | `12` | Team size |
+| `MAX_BOTS` | `12` (`4` on Orgo) | Team size; on Orgo, one screen per bot |
 
 ## Security
 

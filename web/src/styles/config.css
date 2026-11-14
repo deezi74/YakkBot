@@ -214,3 +214,14 @@
 
 /* knob contrasts with the "on" track (matters for black bots in dark mode) */
 .toggle.is-on .toggle__knob { background: var(--bot-on-action, #FFFFFF); }
+
+/* Computer setup */
+.cfg-row--choice { cursor: pointer; }
+.cfg-row--choice input[type='radio'] { flex-shrink: 0; width: 18px; height: 18px; accent-color: var(--color-ink); }
+.cfg-row--choice.is-disabled { cursor: default; opacity: 0.55; }
+.cfg-row--stack { flex-direction: column; align-items: stretch; gap: 8px; padding-top: 12px; padding-bottom: 12px; }
+.cfg-row--nested { min-height: 44px; padding: 4px 0; }
+.cfg-inline-form { display: flex; gap: 8px; }
+.cfg-inline-form .text-input { flex: 1; min-width: 0; }
+.setup-job { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; align-items: flex-start; }
+.setup-job__log { max-width: 100%; max-height: 180px; overflow: auto; margin: 0; padding: 8px 10px; border-radius: 8px; background: #00000010; font-size: 11px; line-height: 15px; white-space: pre-wrap; word-break: break-all; }

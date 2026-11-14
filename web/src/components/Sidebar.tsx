@@ -6,6 +6,7 @@ import { BotAvatarFor } from '../avatar/BotAvatar';
 import { displayName, useFeatures, useStore } from '../store';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
+import { Conversations } from './Conversations';
 import { Menu } from './Menu';
 import { Glyph } from './config/glyphs';
 
@@ -81,6 +82,12 @@ export function Sidebar() {
 
       <div className="sidebar__scroll">
         <TasksIsland />
+        {f.computer !== 'none' && (
+          <button type="button" className="team-computer-link" onClick={() => set({ teamComputerOpen: true })}>
+            <Icon name="monitor" size={16} />
+            <span>Team computer</span>
+          </button>
+        )}
         {primary && (
           <div className="pinned">
             <button type="button" className={`pinned__tile${selectedBotId === primary.id ? ' is-selected' : ''}`} onClick={() => selectBot(primary.id)} title={displayName(primary)}>
@@ -112,6 +119,7 @@ export function Sidebar() {
             </button>
           )}
         </div>
+        <Conversations collapsed={collapsed} />
       </div>
 
       <div className="sidebar__footer">
@@ -137,15 +145,14 @@ export function Sidebar() {
             )}
           </div>
         )}
-        {f.apps ? (
+        {f.apps && (
           <button type="button" className="icon-btn icon-btn--bordered" onClick={() => setModal('apps')} aria-label="Connect apps" title="Connect apps">
             <Icon name="apps" />
           </button>
-        ) : (
-          <button type="button" className="icon-btn icon-btn--bordered" onClick={() => useConfigUI.getState().openAppSettings()} aria-label="Settings" title="Settings">
-            <Glyph name="gear" size={16} opacity={0.7} />
-          </button>
         )}
+        <button type="button" className="icon-btn icon-btn--bordered" onClick={() => useConfigUI.getState().openAppSettings()} aria-label="Settings" title="Settings">
+          <Glyph name="gear" size={16} opacity={0.7} />
+        </button>
       </div>
     </aside>
   );

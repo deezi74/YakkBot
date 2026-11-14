@@ -6,7 +6,7 @@ import { env, features } from './env.js';
 import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
 import { createSession, destroySession, isOwnerKey, requireUser, userFromCookieHeader, type AuthVars } from './lib/auth.js';
-import { allLive, appendRow, clearConversation, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, updateRow } from './store.js';
+import { addConnection, allLive, appendRow, clearConversation, deleteConversation, listConnections, listConversations, openConversation, removeConnection, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, updateRow } from './store.js';
 import { enqueue, interrupt, resolveApproval } from './agent/loop.js';
 import { computerState, ensureComputer, forgetBotFiles, localScreenshot, readyScreen, refreshComputer, releaseScreen, suspendComputer } from './computer.js';
 import { assignEngine, engineHome, engineKind, provisionEngine, removeEngine, syncPersona } from './engine.js';
@@ -350,6 +350,55 @@ api.post('/bots/:id/interrupt', (c) => {
   if (!b) return c.json({ error: 'not found' }, 404);
   interrupt(b.id);
   return c.json({ ok: true });
+});
+
+// Conversations: every chat with a bot is kept; reopen or delete earlier ones.
+api.get('/bots/:id/conversations', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  return c.json({ conversations: listConversations(b.id) });
+});
+api.post('/bots/:id/conversations/:gen/open', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  interrupt(b.id);
+  try { openConversation(b.id, Number(c.req.param('gen'))); } catch (e: any) { return c.json({ error: e.message }, 404); }
+  emitBot(b.id);
+  return c.json({ ok: true });
+});
+api.delete('/bots/:id/conversations/:gen', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  if (Number(c.req.param('gen')) === b.generation) interrupt(b.id);
+  deleteConversation(b.id, Number(c.req.param('gen')));
+  emitBot(b.id);
+  return c.json({ ok: true });
+});
+
+// Social connections: the bots a bot is friends with and the people it knows.
+api.get('/bots/:id/connections', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  return c.json({ connections: listConnections(b.id) });
+});
+api.post('/bots/:id/connections', async (c) => {
+  const user = c.get('user');
+  const b = ownBot(user.id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  const body = await c.req.json<any>().catch(() => ({}));
+  if (body.kind === 'bot' && !ownBot(user.id, String(body.otherBotId ?? ''))) return c.json({ error: 'Pick another Bot.' }, 400);
+  try { addConnection(b.id, { kind: body.kind === 'bot' ? 'bot' : 'person', otherBotId: body.otherBotId, name: body.name, relation: body.relation, note: body.note }); }
+  catch (e: any) { return c.json({ error: e.message }, 400); }
+  hub.emit(user.id, { type: 'social', botId: b.id });
+  return c.json({ connections: listConnections(b.id) });
+});
+api.delete('/bots/:id/connections/:cid', (c) => {
+  const user = c.get('user');
+  const b = ownBot(user.id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  removeConnection(b.id, c.req.param('cid'));
+  hub.emit(user.id, { type: 'social', botId: b.id });
+  return c.json({ connections: listConnections(b.id) });
 });
 
 api.post('/bots/:id/fresh', (c) => {

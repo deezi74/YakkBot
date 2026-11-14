@@ -5,7 +5,9 @@ import path from 'node:path';
 import { db } from '../db.js';
 import { env } from '../env.js';
 import { hub } from '../lib/hub.js';
-import { displayEnv, hasLocalDesktop, localScreenshot } from '../computer.js';
+import { cdpUrlFor, displayEnv, hasLocalDesktop, localScreenshot, screenFor, screenForWork } from '../computer.js';
+import { box } from '../box.js';
+import { orgo } from '../orgo.js';
 import type { ActivityKind } from '../types.js';
 import { bridge, bridgePhone, bridgeUsable } from '../device.js';
 import { ensureHome, entries, MEMORY_LIMIT, readHomeFile, SEP, USER_LIMIT, writeHomeFile } from './home.js';
@@ -232,6 +234,49 @@ const xdo = (args: string[]) =>
     execFile('xdotool', args, { env: displayEnv(), timeout: 15_000 }, (err, _o, stderr) => (err ? reject(new Error(`xdotool: ${String(stderr || err.message).trim().slice(0, 200)}`)) : resolve()));
   });
 
+/** The bot's own screen on the team's Orgo computer: every action goes through Orgo's API to that screen. */
+async function orgoScreen(a: any, ctx: DeviceCtx): Promise<DeviceResult> {
+  await screenForWork(ctx.userId, ctx.botId);
+  const { computerId, screenId } = await screenFor(ctx.userId, ctx.botId);
+  const n = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
+  switch (a.action) {
+    case 'screenshot': break;
+    case 'move': await orgo.move(computerId, screenId, { x: n(a.x), y: n(a.y) }); break;
+    case 'click': await orgo.click(computerId, screenId, { x: n(a.x), y: n(a.y), button: a.button === 'right' || a.button === 'middle' ? a.button : 'left' }); break;
+    case 'double_click': await orgo.click(computerId, screenId, { x: n(a.x), y: n(a.y), double: true }); break;
+    case 'drag': await orgo.drag(computerId, screenId, { start_x: n(a.x), start_y: n(a.y), end_x: n(a.x2), end_y: n(a.y2) }); break;
+    case 'type': {
+      // Orgo types about 2,500 characters per call at most.
+      const text = String(a.text ?? '');
+      for (let i = 0; i < text.length; i += 2000) await orgo.type(computerId, screenId, text.slice(i, i + 2000));
+      break;
+    }
+    case 'key': await orgo.key(computerId, screenId, String(a.keys ?? a.key ?? '').trim().split(/\s+/).join('+')); break;
+    case 'scroll': await orgo.scroll(computerId, screenId, { x: n(a.x) || 640, y: n(a.y) || 360, direction: a.direction === 'up' ? 'up' : 'down', amount: Math.min(n(a.amount) || 3, 20) }); break;
+    case 'open_url': {
+      const url = String(a.url ?? '');
+      if (!/^https?:\/\//i.test(url)) return { output: 'open_url needs an http(s) address.', isError: true };
+      // A new tab in the bot's own Chrome on its screen, through Chrome's DevTools port.
+      const devtools = cdpUrlFor(ctx.botId, screenId);
+      const r = await box.bash(`curl -s -X PUT ${box.quote(`${devtools}/json/new?${url}`)} >/dev/null || (google-chrome ${box.quote(url)} >/dev/null 2>&1 &)`, 30, screenId);
+      if (r.exit_code !== 0) return { output: `Could not open the page: ${r.output.slice(0, 300)}`, isError: true };
+      await new Promise((res) => setTimeout(res, 2500));
+      break;
+    }
+    case 'shell': {
+      const r = await box.bash(String(a.command ?? a.text ?? ''), Math.min(Math.max(n(a.timeout) || 120, 1), 290), screenId);
+      return { output: (r.output || '(no output)').slice(-30_000) + (r.exit_code ? `\n[exit code ${r.exit_code}]` : ''), isError: r.exit_code !== 0 };
+    }
+    default: return { output: 'Unknown action. Use screenshot, click, double_click, move, drag, type, key, scroll, open_url or shell.', isError: true };
+  }
+  if (a.action !== 'screenshot') await new Promise((r) => setTimeout(r, 700));
+  const shot = await orgo.screenshot(computerId, screenId);
+  return {
+    output: a.action === 'screenshot' ? `Your screen right now (${shot.width}x${shot.height}).` : `Done. Your screen after the action (${shot.width}x${shot.height}) is attached.`,
+    image: { mime: shot.mime_type ?? 'image/jpeg', data: String(shot.image).replace(/^data:[^,]+,/, '') },
+  };
+}
+
 async function screen(a: any): Promise<DeviceResult> {
   const xy = () => [String(Math.round(Number(a.x) || 0)), String(Math.round(Number(a.y) || 0))];
   switch (a.action) {
@@ -242,7 +287,15 @@ async function screen(a: any): Promise<DeviceResult> {
     case 'type': await xdo(['type', '--delay', '12', '--', String(a.text ?? '')]); break;
     case 'key': await xdo(['key', '--', ...String(a.keys ?? '').split(/\s+/).filter(Boolean)]); break;
     case 'scroll': await xdo(['mousemove', ...xy(), 'click', '--repeat', String(Math.min(Number(a.amount) || 3, 20)), a.direction === 'up' ? '4' : '5']); break;
-    default: return { output: 'Unknown action. Use screenshot, move, click, double_click, type, key or scroll.', isError: true };
+    case 'drag': await xdo(['mousemove', ...xy(), 'mousedown', '1', 'mousemove', String(Math.round(Number(a.x2) || 0)), String(Math.round(Number(a.y2) || 0)), 'mouseup', '1']); break;
+    case 'open_url': {
+      const url = String(a.url ?? '');
+      if (!/^https?:\/\//i.test(url)) return { output: 'open_url needs an http(s) address.', isError: true };
+      spawn('sh', ['-c', 'browser "$1" || chromium --no-sandbox "$1" || xdg-open "$1"', 'open', url], { env: displayEnv(), detached: true, stdio: 'ignore' }).unref();
+      await new Promise((res) => setTimeout(res, 3000));
+      break;
+    }
+    default: return { output: 'Unknown action. Use screenshot, move, click, double_click, drag, type, key, scroll or open_url.', isError: true };
   }
   if (a.action !== 'screenshot') await new Promise((r) => setTimeout(r, 600));
   const shot = await localScreenshot();
@@ -420,15 +473,16 @@ const PHONE: DeviceTool = {
 
 const SCREEN: DeviceTool = {
   name: 'screen',
-  description: 'See and drive the desktop you share with the user. Actions: screenshot; click, double_click, move (x, y; button left/right/middle); type (text, into the focused field); key (keys, xdotool names such as "ctrl+l" or "Return"); scroll (x, y, direction up/down, amount). Coordinates are pixels of the last screenshot. Every action returns a fresh screenshot. Take a screenshot before your first click.',
+  description: 'Your computer screen, which the user can watch live and take over. Actions: screenshot; click, double_click, move (x, y; button left/right/middle); drag (x, y to x2, y2); type (text, into the focused field); key (keys, X11 names such as "ctrl+l" or "Return"); scroll (x, y, direction up/down, amount); open_url (url, opens in your browser on the screen); shell (command, runs on that computer; cloud computer only). Coordinates are pixels of the last screenshot. Every action returns a fresh screenshot. Take a screenshot before your first click.',
   parameters: obj({
-    action: { type: 'string', enum: ['screenshot', 'click', 'double_click', 'move', 'type', 'key', 'scroll'] },
+    action: { type: 'string', enum: ['screenshot', 'click', 'double_click', 'move', 'drag', 'type', 'key', 'scroll', 'open_url', 'shell'] },
+    x2: { type: 'number' }, y2: { type: 'number' }, url: { type: 'string' }, command: { type: 'string' }, timeout: { type: 'number' },
     x: { type: 'number' }, y: { type: 'number' }, button: { type: 'string', enum: ['left', 'right', 'middle'] },
     text: { type: 'string' }, keys: { type: 'string' }, direction: { type: 'string', enum: ['up', 'down'] }, amount: { type: 'number' },
   }, ['action']),
   activity: 'on_its_computer',
   label: 'Using its computer',
-  impl: (a) => screen(a),
+  impl: (a, ctx) => (env.computerMode === 'orgo' ? orgoScreen(a, ctx) : screen(a)),
 };
 
 // ---------- device (the YakkBot Android app's bridge) ----------
@@ -519,7 +573,7 @@ const DEVICE: DeviceTool = {
 
 export const deviceBridgeAvailable = () => bridgeUsable();
 export const phoneAvailable = () => (env.isTermux && have('termux-battery-status')) || bridgePhone();
-export const screenAvailable = () => hasLocalDesktop() && have('xdotool');
+export const screenAvailable = () => env.computerMode === 'orgo' || (hasLocalDesktop() && have('xdotool'));
 
 export function deviceTools(): DeviceTool[] {
   return [...BASE, ...(phoneAvailable() ? [PHONE] : []), ...(deviceBridgeAvailable() ? [DEVICE] : []), ...(screenAvailable() ? [SCREEN] : [])];

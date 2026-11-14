@@ -8,14 +8,14 @@ export class OrgoError extends Error {
   }
 }
 
-async function call<T = any>(method: string, path: string, body?: unknown, opts: { timeoutMs?: number; headers?: Record<string, string> } = {}): Promise<T> {
+async function call<T = any>(method: string, path: string, body?: unknown, opts: { timeoutMs?: number; headers?: Record<string, string>; key?: string } = {}): Promise<T> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 120_000);
   try {
     const res = await fetch(`${BASE}${path}`, {
       method,
       headers: {
-        Authorization: `Bearer ${env.orgoKey}`,
+        Authorization: `Bearer ${opts.key ?? env.orgoKey}`,
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...opts.headers,
       },
@@ -51,7 +51,10 @@ export interface OrgoScreen { id: string; display: string; width: number; height
 const q = (screen?: string) => (screen && screen !== 'default' ? `?screen=${encodeURIComponent(screen)}` : '');
 
 export const orgo = {
-  workspaces: () => call<any>('GET', '/workspaces'),
+  workspaces: (key?: string) => call<any>('GET', '/workspaces', undefined, { key }),
+  /** A new Linux computer; returns once it is running. */
+  createComputer: (b: { workspace_id: string; name: string; cpu?: number; ram?: number }) =>
+    call<OrgoComputer>('POST', '/computers', { os: 'linux', ...b }, { timeoutMs: 240_000, headers: { 'Idempotency-Key': `yakk-${b.workspace_id}-${b.name}` } }),
 
   getComputer: (id: string) => call<OrgoComputer>('GET', `/computers/${id}`),
   start: (id: string) => call<any>('POST', `/computers/${id}/start`, {}, { timeoutMs: 320_000 }),
