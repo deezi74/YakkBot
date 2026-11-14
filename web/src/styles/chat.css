@@ -248,3 +248,7 @@
   max-width: 960px; margin: 0 auto 8px; padding: 6px 12px; border-radius: 12px; background: var(--color-danger-bg); color: var(--color-danger-text);
   font-size: 13px; line-height: 18px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
+
+.thinking__watch { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin-top: 6px; height: 28px; padding: 0 12px; border-radius: 999px; background: var(--color-text-primary); color: var(--color-bg-pane); font-size: 12.5px; font-weight: 600; }
+.thinking__watch-dot { width: 7px; height: 7px; border-radius: 50%; background: #FF4D4D; box-shadow: 0 0 0 0 #FF4D4D88; animation: watch-ping 1.6s ease-out infinite; }
+@keyframes watch-ping { to { box-shadow: 0 0 0 7px #FF4D4D00; } }

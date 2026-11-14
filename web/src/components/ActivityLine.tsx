@@ -3,6 +3,10 @@ import type { Bot, LiveState, Row } from '@shared/types';
 import { BotAvatarFor } from '../avatar/BotAvatar';
 import { activityPhrase, activityStatus, isWaitingForYou } from '../lib/phrases';
 import { duration } from '../lib/time';
+import { useFeatures, useStore } from '../store';
+
+// Work that shows up on the computer: offer to watch it live.
+const ON_SCREEN = new Set(['searching_web', 'reading_web', 'browsing_web', 'on_its_computer']);
 
 const CAPTION_FADE_MS = 320;
 
@@ -57,6 +61,9 @@ export function ThinkingBlock({ bot, live, rows, steps = 0 }: Props) {
   }, []);
 
   const waiting = isWaitingForYou(live);
+  const f = useFeatures();
+  const viewerOpen = useStore((s) => s.viewerOpen);
+  const watchable = f.computer !== 'none' && !viewerOpen && !waiting && !!live.activity && ON_SCREEN.has(live.activity.kind);
   const status = activityStatus(live, rows);
   const since = live.startedAt ?? live.activity?.since ?? live.awaiting?.since ?? now;
   const tick = Math.floor((now - (live.activity?.since ?? since)) / 6000);
@@ -85,6 +92,11 @@ export function ThinkingBlock({ bot, live, rows, steps = 0 }: Props) {
             {timer && steps > 0 && ' · '}
             {steps > 0 && `${steps} ${steps === 1 ? 'step' : 'steps'}`}
           </span>
+        )}
+        {watchable && (
+          <button type="button" className="thinking__watch" onClick={() => useStore.getState().set({ viewerOpen: true, viewerMode: 'watch', viewerHint: null })}>
+            <i className="thinking__watch-dot" aria-hidden /> Watch live
+          </button>
         )}
       </div>
     </div>

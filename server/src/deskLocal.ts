@@ -32,7 +32,7 @@ export const deskHomeUrl = () => `http://127.0.0.1:${env.port}/desk/home?t=${des
 export interface DeskApp { id: string; name: string; icon: string; tint: string; cmd: string; args?: string[]; pkg: { alpine?: string; termux?: string; debian?: string }; about: string; big?: boolean }
 
 export const DESK_APPS: DeskApp[] = [
-  { id: 'browser', name: 'Browser', icon: '🌐', tint: '#DCEBFF', cmd: 'browser|chromium-browser|chromium|firefox', pkg: { alpine: 'chromium', termux: 'chromium', debian: 'chromium' }, about: 'Chromium web browser' },
+  { id: 'browser', name: 'Browser', icon: '🌐', tint: '#DCEBFF', cmd: 'browser|chromium-browser|chromium|firefox', args: [`--user-data-dir=${path.join(process.env.HOME ?? '/root', '.config', 'yakkbot-browser')}`, '--remote-debugging-port=9222'], pkg: { alpine: 'chromium', termux: 'chromium', debian: 'chromium' }, about: 'Chromium web browser' },
   { id: 'terminal', name: 'Terminal', icon: '⌨️', tint: '#E4E4E7', cmd: 'xfce4-terminal', pkg: { alpine: 'xfce4-terminal', termux: 'xfce4-terminal', debian: 'xfce4-terminal' }, about: 'Command line' },
   { id: 'files', name: 'Files', icon: '📁', tint: '#DDF0FF', cmd: 'thunar', pkg: { alpine: 'thunar', termux: 'thunar', debian: 'thunar' }, about: 'File manager' },
   { id: 'editor', name: 'Text editor', icon: '📝', tint: '#FFF4D6', cmd: 'mousepad', pkg: { alpine: 'mousepad', termux: 'mousepad', debian: 'mousepad' }, about: 'Simple text and code editor' },
@@ -235,3 +235,31 @@ deskApi.get('/home', (c) => c.html(homeHtml(c.req.query('t')!, c.req.query('bot'
 deskApi.get('/apps', (c) => c.json(deskApps()));
 deskApi.post('/launch', async (c) => { const p = await c.req.json<{ id?: string }>().catch(() => ({} as any)); return c.json(launchApp(String(p.id ?? ''))); });
 deskApi.post('/install', async (c) => { const p = await c.req.json<{ id?: string }>().catch(() => ({} as any)); return c.json(installApp(String(p.id ?? ''))); });
+
+// ---------- showing the bot's work on the screen ----------
+
+/** The desktop's browser listens for remote control here (started with --remote-debugging-port). */
+const CDP = `http://127.0.0.1:${process.env.YAKK_DESK_CDP_PORT ?? 9222}`;
+let botTab: string | null = null;
+let lastShown = { url: '', at: 0 };
+
+/**
+ * Opens a page the bot is working with in the computer's browser, so whoever is watching sees it.
+ * One tab is the bot's: each new page replaces the last one there. Quiet and best effort: if the
+ * computer is off or its browser is not listening, nothing happens and the bot's work goes on.
+ */
+export async function showOnScreen(url: string): Promise<boolean> {
+  if (env.computerMode !== 'local' || !/^https?:\/\//i.test(url)) return false;
+  if (url === lastShown.url && Date.now() - lastShown.at < 10_000) return true;
+  lastShown = { url, at: Date.now() };
+  try {
+    const r = await fetch(`${CDP}/json/new?${encodeURI(url)}`, { method: 'PUT', signal: AbortSignal.timeout(2500) });
+    if (!r.ok) return false;
+    const tab = (await r.json()) as { id?: string };
+    const old = botTab;
+    botTab = tab.id ?? null;
+    if (botTab) await fetch(`${CDP}/json/activate/${botTab}`, { signal: AbortSignal.timeout(2000) }).catch(() => {});
+    if (old && old !== botTab) await fetch(`${CDP}/json/close/${old}`, { signal: AbortSignal.timeout(2000) }).catch(() => {});
+    return true;
+  } catch { return false; /* the computer is not up: nothing to show */ }
+}
