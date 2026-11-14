@@ -59,7 +59,27 @@ export function bridgePhone(): boolean {
   return phoneCaps.on;
 }
 
+/**
+ * Whether on-device models run in the YakkBot app's own engine. Always inside the app; and also for a
+ * server elsewhere on the phone (Termux) that the app paired with, once the app says it has the engine.
+ */
+let appEngineSeen: { at: number; on: boolean } = { at: 0, on: false };
+export async function refreshAppEngine(): Promise<boolean> {
+  if (!pairing()) return (appEngineSeen = { at: Date.now(), on: false }).on;
+  if (process.env.YAKK_PLATFORM === 'android-app') return true;
+  try { const s = await bridge('/models/status', {}, 3000); appEngineSeen = { at: Date.now(), on: !!s?.engine }; }
+  catch { appEngineSeen = { at: Date.now(), on: false }; }
+  return appEngineSeen.on;
+}
+export function appEngine(): boolean {
+  if (!pairing()) return false;
+  if (process.env.YAKK_PLATFORM === 'android-app') return true;
+  if (Date.now() - appEngineSeen.at > 30_000) void refreshAppEngine();
+  return appEngineSeen.on;
+}
+
 export function unpair() {
+  appEngineSeen = { at: 0, on: false };
   phoneCaps = { at: 0, on: false };
   db.prepare('DELETE FROM device_bridge WHERE id=1').run();
   seen = { at: 0, ok: false };

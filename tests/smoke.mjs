@@ -174,9 +174,16 @@ async function run(wire) {
     rs = await settle(bot.id, (r) => lastAssistant(r)?.startsWith('Tool said: Text sent'));
     check('the text is sent through the app', bridgeCalls.some((c) => c.path === '/phone' && c.body.action === 'sms_send' && c.body.text === 'on my way'), JSON.stringify(bridgeCalls.slice(-2)));
   }
+  check('the computer card can ask the app about the desktop', (await api('GET', '/desktop')).json.state === 'none');
+  // Paired with the app (e.g. a Termux server opened inside it): its models run in the app's engine.
+  bridgeCalls.length = 0;
+  const viaAppModels = (await api('GET', '/phone-models')).json;
+  check('with the app paired, models come from the app', viaAppModels.recommended === 'qwen35-2b' && bridgeCalls.some((c) => c.path === '/models/status'), JSON.stringify(viaAppModels).slice(0, 200));
+  await api('DELETE', '/device');
   // Models on this device: a downloaded GGUF, run by llama-server (here a stand-in) when a bot uses it.
   const providers = (await api('GET', '/providers')).json.providers;
   const phoneProv = providers.find((p) => p.id === 'phone');
+  check('on-device models are offered right after ready providers', providers.findIndex((p) => p.id === 'phone') <= providers.filter((p) => p.connected).length, providers.map((p) => p.id).join(','));
   check('the on-device provider lists downloaded models', phoneProv?.connected && phoneProv.models.includes('tiny.gguf'), JSON.stringify(phoneProv));
   const models = (await api('GET', '/phone-models')).json;
   check('the models page shows the engine, the list and the download', models.engine === true && models.catalog?.length > 5 && models.installed?.some((m) => m.file === 'tiny.gguf'), JSON.stringify(models).slice(0, 300));
@@ -189,7 +196,6 @@ async function run(wire) {
   check('the engine is running that model', (await api('GET', '/phone-models')).json.running === 'tiny.gguf');
   await api('POST', '/phone-models/stop', {});
   await api('DELETE', `/bots/${third.id}`);
-  check('the computer card can ask the app about the desktop', (await api('GET', '/desktop')).json.state === 'none');
   await api('DELETE', `/bots/${third.id}`);
   await api('DELETE', '/device');
 

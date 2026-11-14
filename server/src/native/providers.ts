@@ -1,7 +1,7 @@
 import { db, now } from '../db.js';
 import { env } from '../env.js';
 import type { EngineProvider } from '../types.js';
-import { bridge, pairing } from '../device.js';
+import { bridge, pairing, appEngine, refreshAppEngine } from '../device.js';
 import { engine as localEngine, installedModels } from './localModels.js';
 
 /**
@@ -142,7 +142,7 @@ export async function listProviders(): Promise<EngineProvider[]> {
   await phoneModels();
   for (const p of PROVIDERS) {
     // On-device models: the app's engine, or llama-server here.
-    if (p.id === 'phone' && !(env.inApp ? pairing() : localEngine())) continue;
+    // On-device models are always offered: without a model yet, picking it leads to the download page.
     const connected = providerConnected(p.id);
     out.push({
       id: p.id, name: p.name, kind: 'api_key', connected,
@@ -153,7 +153,8 @@ export async function listProviders(): Promise<EngineProvider[]> {
       defaultModel: defaultModel(p.id),
     });
   }
-  return out.sort((a, b) => Number(b.connected) - Number(a.connected));
+  // Ready providers first, then models on this device (free, no key), then the rest.
+  return out.sort((a, b) => Number(b.connected) - Number(a.connected) || Number(b.id === 'phone') - Number(a.id === 'phone'));
 }
 
 // ---------- models on the phone (the YakkBot app's llama.cpp) ----------
@@ -163,8 +164,7 @@ const phoneCache: { at: number; files: string[] } = { at: 0, files: [] };
 /** The .gguf files downloaded in the app, cached for a few seconds. Empty without the app. */
 export async function phoneModels(): Promise<string[]> {
   // Outside the app: the models this server downloaded, if llama-server is installed.
-  if (!env.inApp) return (phoneCache.files = localEngine() ? installedModels().map((m) => m.file) : []);
-  if (!pairing()) return (phoneCache.files = []);
+  if (!(await refreshAppEngineSoon())) return (phoneCache.files = localEngine() ? installedModels().map((m) => m.file) : []);
   if (Date.now() - phoneCache.at < 5000) return phoneCache.files;
   phoneCache.at = Date.now();
   try {
@@ -172,6 +172,11 @@ export async function phoneModels(): Promise<string[]> {
     phoneCache.files = s.engine ? (s.installed ?? []).map((m: any) => String(m.file)) : [];
   } catch { /* the app is not answering: keep what we knew */ }
   return phoneCache.files;
+}
+
+/** The app's engine when it is there, checked at most every few seconds. */
+async function refreshAppEngineSoon(): Promise<boolean> {
+  return appEngine() || (Date.now() - phoneCache.at > 5000 ? refreshAppEngine() : false);
 }
 
 export const forgetPhoneModels = () => { phoneCache.at = 0; };

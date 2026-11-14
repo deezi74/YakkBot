@@ -16,7 +16,7 @@ import { openTerminal } from './desk.js';
 import path from 'node:path';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
 import { MEMORY_LIMIT, USER_LIMIT, readHomeFile, writeHomeFile, type HomeFile } from './native/home.js';
-import { bridge, BridgeError, bridgeStatus, pair, unpair } from './device.js';
+import { bridge, BridgeError, bridgeStatus, pair, unpair, appEngine, refreshAppEngine } from './device.js';
 import { forgetPhoneModels } from './native/providers.js';
 import { CATALOG, cancelDownload, deleteModel, hubFiles, localStatus, searchHub, startDownload, stopModel } from './native/localModels.js';
 import { PROVIDERS, listProviders, removeProviderKey, setProviderKey } from './native/providers.js';
@@ -421,13 +421,13 @@ const viaApp = async (c: any, path: string, body: Record<string, unknown> = {}, 
 };
 
 // Inside the YakkBot app its own engine runs them; anywhere else (Termux, a PC) this server does, with llama-server.
-configApi.get('/phone-models', (c) => (env.inApp ? viaApp(c, '/models/status') : c.json(localStatus())));
+configApi.get('/phone-models', async (c) => ((await refreshAppEngine()) ? viaApp(c, '/models/status') : c.json(localStatus())));
 configApi.post('/phone-models/:action', async (c) => {
   const action = c.req.param('action');
   if (!['download', 'cancel', 'delete', 'search', 'files', 'stop'].includes(action)) return c.json({ error: 'unknown action' }, 404);
   const body: any = await c.req.json().catch(() => ({}));
   forgetPhoneModels();
-  if (env.inApp) return viaApp(c, `/models/${action}`, body, action === 'search' || action === 'files' ? 45_000 : 30_000);
+  if (appEngine()) return viaApp(c, `/models/${action}`, body, action === 'search' || action === 'files' ? 45_000 : 30_000);
   try {
     switch (action) {
       case 'download': {

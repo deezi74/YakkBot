@@ -6,7 +6,7 @@ import { useConfigUI } from '../configStore';
 import { Icon } from './Icon';
 
 const KIND: Record<EngineProvider['kind'], string> = { subscription: 'Subscription', api_key: 'API key' };
-const connLabel = (p: EngineProvider) => (p.connected ? (p.keyless ? 'Local server' : p.fromEnv ? 'Key from the server’s settings' : 'Connected') : p.keyless ? 'Not set up' : 'Needs a key');
+const connLabel = (p: EngineProvider) => (p.id === 'phone' ? (p.connected ? 'Free, offline' : 'Download a model, free') : p.connected ? (p.keyless ? 'Local server' : p.fromEnv ? 'Key from the server’s settings' : 'Connected') : p.keyless ? 'Not set up' : 'Needs a key');
 const STATUS: Record<EngineInfo['status'], string> = { ready: 'ready', starting: 'starting', stopped: 'stopped', error: 'error' };
 
 /** Connected providers first; otherwise the server's order. */
