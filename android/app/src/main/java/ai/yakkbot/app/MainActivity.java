@@ -144,8 +144,10 @@ public class MainActivity extends Activity {
             c.setConnectTimeout(1200);
             c.setReadTimeout(1500);
             boolean ok = c.getResponseCode() == 200;
+            // Only the app's own server counts, never another YakkBot that happens to answer here.
+            String body = ok ? new String(c.getInputStream().readAllBytes(), StandardCharsets.UTF_8) : "";
             c.disconnect();
-            return ok;
+            return ok && body.contains("\"platform\":\"android-app\"");
         } catch (Exception e) {
             return false;
         }

@@ -7,7 +7,8 @@ import java.security.SecureRandom;
 
 /** Small settings kept on the phone: where the YakkBot server is, and the bridge's token. */
 final class Prefs {
-    static final int SERVER_PORT = 8787;
+    /** Not 8787: that is where a YakkBot installed in Termux listens, and the app must never show that one. */
+    static final int SERVER_PORT = 8797;
     static final int BRIDGE_PORT = 8765;
 
     private Prefs() {}
@@ -17,7 +18,7 @@ final class Prefs {
     }
 
     static String serverUrl(Context c) {
-        return "http://127.0.0.1:" + sp(c).getInt("serverPort", SERVER_PORT);
+        return "http://127.0.0.1:" + SERVER_PORT;
     }
 
     /** The secret a caller must present to the phone bridge. Made once, on first use. */
