@@ -295,6 +295,15 @@ async function run(wire) {
   check('accounts lists email providers and app connections', acc.emailPresets?.some((p) => p.id === 'gmail') && typeof acc.composio?.connected === 'boolean', JSON.stringify(acc).slice(0, 200));
   await api('DELETE', `/accounts/${ghAdd.accounts.find((x) => x.kind === 'github').id}`);
 
+  // The computer's home page and app shelf.
+  check('the computer home page needs its token', (await fetch(`${base}/desk/home`)).status === 404);
+  const deskT = fs.readFileSync(path.join(home, wire, 'desk.token'), 'utf8').trim();
+  const homePage = await (await fetch(`${base}/desk/home?t=${deskT}`)).text();
+  check('the computer home page greets the bot', homePage.includes('Welcome back,') && homePage.includes('This is my computer'), homePage.slice(0, 120));
+  const deskApps = (await api('GET', '/computer/apps')).json.apps ?? [];
+  check('the computer lists its apps', deskApps.length >= 15 && deskApps.some((a) => a.id === 'browser') && deskApps.every((a) => typeof a.installed === 'boolean'), String(deskApps.length));
+  check('an unknown app is refused', (await api('POST', '/computer/apps/nope/open', {})).json.ok === false);
+
   const setup = (await api('GET', '/computer/setup')).json;
   check('the computer page reports where bots work', ['none', 'local', 'orgo'].includes(setup.mode) && setup.maxBots > 0, JSON.stringify(setup));
   check('Orgo setup without a key asks for one', (await api('POST', '/computer/orgo/key', {})).status === 400);

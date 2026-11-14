@@ -20,7 +20,7 @@ final class Desktop {
      * engine, speech synthesis and media plugins): 266 packages, about 350 MB to download, instead of
      * 373 and 430 MB. Chromium is most of what is left.
      */
-    static final String PACKAGES = "chromium tigervnc xfwm4 xfce4-panel xfce4-session xfce4-terminal xfdesktop dbus dbus-x11 xdotool scrot font-dejavu font-noto adwaita-icon-theme";
+    static final String PACKAGES = "chromium tigervnc xfwm4 xfce4-panel xfce4-session xfce4-terminal xfdesktop thunar dbus dbus-x11 xdotool scrot font-dejavu font-noto font-noto-emoji adwaita-icon-theme";
     private static volatile String state = null;
 
     private Desktop() {}
@@ -89,7 +89,7 @@ final class Desktop {
                 + "[ -s /etc/machine-id ] || dbus-uuidgen > /etc/machine-id; [ -e /var/lib/dbus/machine-id ] || ln -sf /etc/machine-id /var/lib/dbus/machine-id; "
                 + "export HOME=/root USER=root XDG_RUNTIME_DIR=/tmp/runtime-root DISPLAY=" + DISPLAY + " NO_AT_BRIDGE=1; "
                 + "( for i in $(seq 1 30); do [ -e /tmp/.X11-unix/X1 ] && break; sleep 1; done; "
-                + "while true; do echo \"[desktop] starting the session\"; dbus-launch --exit-with-session sh -c 'xfwm4 --replace & xfdesktop & exec xfce4-panel'; echo \"[desktop] session ended, starting it again\"; sleep 3; done ) & "
+                + "while true; do echo \"[desktop] starting the session\"; dbus-launch --exit-with-session sh -c 'xfwm4 --replace & xfdesktop & while true; do browser --start-maximized $(cat /root/.yakkbot/desk.url 2>/dev/null); sleep 2; done'; echo \"[desktop] session ended, starting it again\"; sleep 3; done ) & "
                 + "exec Xvnc " + DISPLAY + " -geometry 1280x800 -depth 24 -rfbport " + VNC_PORT + " -localhost -SecurityTypes VncAuth -PasswordFile /root/.vnc/passwd -AlwaysShared -nolisten tcp";
     }
 

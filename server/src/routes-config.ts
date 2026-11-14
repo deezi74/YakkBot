@@ -7,6 +7,7 @@ import { requireUser, type AuthVars } from './lib/auth.js';
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { env, getAppSettings, setAppSettings } from './env.js';
+import { deskApps, installApp, launchApp } from './deskLocal.js';
 import { EMAIL_PRESETS, addEmail, addGithub, listAccounts, removeAccount } from './accounts.js';
 import { resetComposio } from './composio.js';
 import { SKILL_LIBRARY, librarySkill } from './skillLibrary.js';
@@ -513,6 +514,11 @@ configApi.put('/accounts/composio', async (c) => {
   return c.json({ connected: !!env.composioKey });
 });
 configApi.delete('/accounts/:id', (c) => { removeAccount(c.req.param('id')); return c.json({ accounts: listAccounts() }); });
+
+// The computer on this device: its apps, for the dock under the screen.
+configApi.get('/computer/apps', (c) => c.json({ apps: deskApps() }));
+configApi.post('/computer/apps/:id/open', (c) => c.json(launchApp(c.req.param('id'))));
+configApi.post('/computer/apps/:id/install', (c) => c.json(installApp(c.req.param('id'))));
 
 /** Ready-made skills, shown as cards in each bot's Skills tab. */
 configApi.get('/skill-library', (c) => c.json({ skills: SKILL_LIBRARY }));

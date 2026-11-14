@@ -1,3 +1,4 @@
+import { installApp, launchApp } from '../deskLocal.js';
 import { emailTool, githubTool, hasEmail, hasGithub } from '../accounts.js';
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -289,6 +290,12 @@ async function screen(a: any): Promise<DeviceResult> {
     case 'key': await xdo(['key', '--', ...String(a.keys ?? '').split(/\s+/).filter(Boolean)]); break;
     case 'scroll': await xdo(['mousemove', ...xy(), 'click', '--repeat', String(Math.min(Number(a.amount) || 3, 20)), a.direction === 'up' ? '4' : '5']); break;
     case 'drag': await xdo(['mousemove', ...xy(), 'mousedown', '1', 'mousemove', String(Math.round(Number(a.x2) || 0)), String(Math.round(Number(a.y2) || 0)), 'mouseup', '1']); break;
+    case 'launch': case 'install_app': {
+      const r = a.action === 'launch' ? launchApp(String(a.app ?? a.text ?? '')) : installApp(String(a.app ?? a.text ?? ''));
+      if (!r.ok || a.action === 'install_app') return { output: r.message, isError: !r.ok };
+      await new Promise((res) => setTimeout(res, 3500));
+      break;
+    }
     case 'open_url': {
       const url = String(a.url ?? '');
       if (!/^https?:\/\//i.test(url)) return { output: 'open_url needs an http(s) address.', isError: true };
@@ -474,9 +481,10 @@ const PHONE: DeviceTool = {
 
 const SCREEN: DeviceTool = {
   name: 'screen',
-  description: 'Your computer screen, which the user can watch live and take over. Actions: screenshot; click, double_click, move (x, y; button left/right/middle); drag (x, y to x2, y2); type (text, into the focused field); key (keys, X11 names such as "ctrl+l" or "Return"); scroll (x, y, direction up/down, amount); open_url (url, opens in your browser on the screen); shell (command, runs on that computer; cloud computer only). Coordinates are pixels of the last screenshot. Every action returns a fresh screenshot. Take a screenshot before your first click.',
+  description: 'Your computer screen, which the user can watch live and take over. Actions: screenshot; click, double_click, move (x, y; button left/right/middle); drag (x, y to x2, y2); type (text, into the focused field); key (keys, X11 names such as "ctrl+l" or "Return"); scroll (x, y, direction up/down, amount); open_url (url, opens in your browser on the screen); launch (app: Browser, Terminal, Files, Text editor, Code, Draw, GIMP, Inkscape, Krita, Blender, FreeCAD, KiCad, Kdenlive, OBS, Audacity, LMMS, VLC, Office, Photos, Calculator); install_app (app) when it is not installed yet; shell (command, runs on that computer; cloud computer only). Coordinates are pixels of the last screenshot. Every action returns a fresh screenshot. Take a screenshot before your first click.',
   parameters: obj({
-    action: { type: 'string', enum: ['screenshot', 'click', 'double_click', 'move', 'drag', 'type', 'key', 'scroll', 'open_url', 'shell'] },
+    action: { type: 'string', enum: ['screenshot', 'click', 'double_click', 'move', 'drag', 'type', 'key', 'scroll', 'open_url', 'launch', 'install_app', 'shell'] },
+    app: { type: 'string' },
     x2: { type: 'number' }, y2: { type: 'number' }, url: { type: 'string' }, command: { type: 'string' }, timeout: { type: 'number' },
     x: { type: 'number' }, y: { type: 'number' }, button: { type: 'string', enum: ['left', 'right', 'middle'] },
     text: { type: 'string' }, keys: { type: 'string' }, direction: { type: 'string', enum: ['up', 'down'] }, amount: { type: 'number' },
