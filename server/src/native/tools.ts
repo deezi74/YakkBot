@@ -1,4 +1,4 @@
-import { installApp, launchApp } from '../deskLocal.js';
+import { installApp, launchApp, showOnScreen } from '../deskLocal.js';
 import { emailTool, githubTool, hasEmail, hasGithub } from '../accounts.js';
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -299,7 +299,8 @@ async function screen(a: any): Promise<DeviceResult> {
     case 'open_url': {
       const url = String(a.url ?? '');
       if (!/^https?:\/\//i.test(url)) return { output: 'open_url needs an http(s) address.', isError: true };
-      spawn('sh', ['-c', 'browser "$1" || chromium --no-sandbox "$1" || xdg-open "$1"', 'open', url], { env: displayEnv(), detached: true, stdio: 'ignore' }).unref();
+      // The bot's own tab in the computer's browser; a new window only if the browser is not listening.
+      if (!(await showOnScreen(url))) spawn('sh', ['-c', 'browser "$1" || chromium --no-sandbox "$1" || xdg-open "$1"', 'open', url], { env: displayEnv(), detached: true, stdio: 'ignore' }).unref();
       await new Promise((res) => setTimeout(res, 3000));
       break;
     }
@@ -429,7 +430,11 @@ const BASE: DeviceTool[] = [
     parameters: obj({ query: { type: 'string' }, count: { type: 'number', description: 'How many results, up to 10.' } }, ['query']),
     activity: 'searching_web',
     label: 'Searching the web',
-    impl: async (a) => ({ output: await webSearch(String(a.query ?? ''), Math.min(Math.max(Number(a.count) || 6, 1), 10)), summary: 'Searched the web' }),
+    impl: async (a) => {
+      // Shown on the computer while it runs, so the owner can watch the search.
+      void showOnScreen(`https://duckduckgo.com/?q=${encodeURIComponent(String(a.query ?? ''))}`);
+      return { output: await webSearch(String(a.query ?? ''), Math.min(Math.max(Number(a.count) || 6, 1), 10)), summary: 'Searched the web' };
+    },
   },
   {
     name: 'web_fetch',
@@ -440,6 +445,7 @@ const BASE: DeviceTool[] = [
     impl: async (a, ctx) => {
       const url = String(a.url ?? '');
       if (!/^https?:\/\//i.test(url)) return { output: 'The URL must start with http:// or https://', isError: true };
+      void showOnScreen(url);
       const r = await fetch(url, { headers: { 'user-agent': UA, accept: 'text/html,application/json,text/plain,*/*' }, redirect: 'follow', signal: AbortSignal.any([ctx.signal, AbortSignal.timeout(45_000)]) });
       const type = r.headers.get('content-type') ?? '';
       if (!/text|json|xml|javascript/.test(type) && type) return { output: `${url} is ${type}, not text. Download it with the terminal (curl -LO) if you need the file.`, isError: true };

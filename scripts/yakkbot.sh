@@ -119,7 +119,7 @@ desktop() {
       mkdir -p "$HOME/.vnc"
       printf '%s\n' "$pw" | vncpasswd -f > "$HOME/.vnc/passwd"; chmod 600 "$HOME/.vnc/passwd"
       # The desktop opens the bots' home page in the browser once YakkBot has written its address.
-      printf '#!/bin/sh\n(sleep 6; U=$(cat "$HOME/.yakkbot/desk.url" 2>/dev/null); for b in browser chromium-browser chromium firefox; do command -v $b >/dev/null && exec $b $U; done) &\nexec startxfce4\n' > "$HOME/.vnc/xstartup"; chmod +x "$HOME/.vnc/xstartup"
+      printf '#!/bin/sh\n(sleep 6; U=$(cat "$HOME/.yakkbot/desk.url" 2>/dev/null); for b in browser chromium-browser chromium firefox; do command -v $b >/dev/null && exec $b --user-data-dir=$HOME/.config/yakkbot-browser --remote-debugging-port=9222 $U; done) &\nexec startxfce4\n' > "$HOME/.vnc/xstartup"; chmod +x "$HOME/.vnc/xstartup"
       setenv VNC_PORT 5901; setenv VNC_PASSWORD "$pw"; setenv YAKK_COMPUTER local
       say "Desktop set up. Start it with: yakkbot desktop start   (then: yakkbot restart)"
       ;;
