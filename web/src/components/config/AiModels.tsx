@@ -12,6 +12,8 @@ export function AiModels() {
   const [providers, setProviders] = useState<EngineProvider[] | null>(null);
   const [def, setDef] = useState<{ provider: string | null; model: string | null } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [learn, setLearn] = useState<boolean | null>(null);
+  useEffect(() => { configApi.learning().then((r) => setLearn(r.autoLearn)).catch(() => {}); }, []);
   const [key, setKey] = useState('');
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -73,6 +75,19 @@ export function AiModels() {
         </div>
         {note && <div className="cfg-field__hint" role="status">{note}</div>}
         {error && <div className="cfg-error">{error}</div>}
+      </section>
+
+      <section className="cfg-section">
+        <div className="cfg-section__label">Getting smarter</div>
+        <div className="cfg-card">
+          <label className="cfg-row cfg-row--choice">
+            <input type="checkbox" checked={!!learn} disabled={learn === null} onChange={(e) => configApi.setLearning(e.target.checked).then((r) => setLearn(r.autoLearn)).catch(() => {})} />
+            <div className="cfg-row__text">
+              <div className="cfg-row__title">Learn automatically</div>
+              <div className="cfg-row__sub">After real work, or when you teach them something, Bots look back and save what helps next time: facts about you, notes, and skills for tasks they repeat. It happens after the reply, so it never slows a reply down. You can see and edit everything in each Bot’s Memories and Skills.</div>
+            </div>
+          </label>
+        </div>
       </section>
 
       <section className="cfg-section">

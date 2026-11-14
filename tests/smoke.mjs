@@ -232,6 +232,17 @@ async function run(wire) {
   check('unfriending removes both sides', !(await api('GET', `/bots/${pal.id}/connections`)).json.connections.length);
   await api('DELETE', `/bots/${pal.id}`);
 
+  // Learning on its own: a turn where the user teaches something leaves a memory and a skill behind.
+  check('automatic learning is on by default', (await api('GET', '/learning')).json.autoLearn === true);
+  await api('POST', `/bots/${bot.id}/messages`, { text: 'From now on call me Captain' });
+  rs = await settle(bot.id, (r) => r.some((x) => x.kind === 'event' && x.body.event === 'learned'), 20000);
+  const learnedRow = rs.find((x) => x.kind === 'event' && x.body.event === 'learned');
+  check('the bot learns from the turn by itself', !!learnedRow && /Learned from this: .*(learned|improved) the skill “Greeting the user”/.test(learnedRow.body.text), learnedRow?.body.text ?? JSON.stringify(rs.slice(-2)));
+  const botSkills = (await api('GET', `/bots/${bot.id}/settings`)).json.skills ?? [];
+  check('the learned skill is in its Skills list', botSkills.some((s) => s.name === 'Greeting the user'), JSON.stringify(botSkills).slice(0, 200));
+  check('learning can be turned off', (await api('PUT', '/learning', { autoLearn: false })).json.autoLearn === false);
+  await api('PUT', '/learning', { autoLearn: true });
+
   // Settings › AI models: one default for all bots.
   const provs = (await api('GET', '/providers')).json.providers.filter((p) => p.connected && p.id !== 'phone');
   const setDef = await api('PUT', '/providers/defaults', { provider: provs[0].id, model: 'model-x', applyToAll: true });

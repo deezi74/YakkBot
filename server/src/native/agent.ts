@@ -1,3 +1,4 @@
+import { learnInBackground, shouldLearn } from './learn.js';
 import crypto from 'node:crypto';
 import { db } from '../db.js';
 import { env } from '../env.js';
@@ -265,7 +266,14 @@ export async function* nativeTurn(t: NativeTurn): AsyncGenerator<StreamEvent> {
 
     if (r.stop === 'refusal') throw new LlmError(r.note ? `The model declined this request: ${r.note}` : 'The model declined this request.');
     if (r.stop === 'length') throw new LlmError('The reply was cut off at the length limit. Ask me to continue.');
-    if (!r.calls.length) return;
+    if (!r.calls.length) {
+      // Look back over this piece of work and keep what helps next time (in the background).
+      const userTurns = items.filter((it) => it.role === 'user' && !it.text.startsWith('[The conversation so far')).length;
+      if (shouldLearn({ userText: t.input, toolRounds: step, userTurns })) {
+        learnInBackground({ userId: t.userId, botId: t.botId, provider, model, turn: items.slice(Math.max(0, items.indexOf(userItem) - 2)) });
+      }
+      return;
+    }
 
     for (const call of r.calls) {
       if (t.signal.aborted) throw new Error('interrupted');

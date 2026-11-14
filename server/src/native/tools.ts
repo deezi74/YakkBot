@@ -305,7 +305,7 @@ async function screen(a: any): Promise<DeviceResult> {
 
 // ---------- the list ----------
 
-function memoryTool(a: any, ctx: DeviceCtx): DeviceResult {
+export function memoryTool(a: any, ctx: DeviceCtx): DeviceResult {
   const home = ensureHome(ctx.botId);
   const which = a.target === 'user' ? 'user' : 'memory';
   const limit = which === 'user' ? USER_LIMIT : MEMORY_LIMIT;
