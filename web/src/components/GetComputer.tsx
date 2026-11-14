@@ -52,6 +52,11 @@ export function GetComputer({ bot }: { bot: Bot }) {
             : state === 'ready' ? 'Starting it up…'
             : 'A desktop with a Chrome browser your bots use while you watch, and you can take over any time. About 600 MB.'}
         </div>
+        {installing && (() => {
+          const m = /(\d+) of (\d+)/.exec(state);
+          const pct = m ? Math.round((Number(m[1]) / Math.max(1, Number(m[2]))) * 100) : null;
+          return <div className={`get-computer__bar${pct === null ? ' is-busy' : ''}`} role="progressbar" aria-valuenow={pct ?? undefined} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct ?? 30}%` }} /></div>;
+        })()}
         {(failed || error) && <div className="card__error">{error ?? state.replace(/^failed:\s*/, '')}</div>}
       </div>
       {f.app && !installing && state !== 'ready' && (

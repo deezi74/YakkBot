@@ -147,15 +147,20 @@ final class Linux {
 
     /** Runs a command to the end. On kernels that reject PRoot's seccomp filter, retries without it. */
     Result run(String script, int timeoutSec, Map<String, String> env) throws Exception {
-        Result r = runOnce(script, timeoutSec, env);
+        return run(script, timeoutSec, env, null);
+    }
+
+    /** Like run, and hands each new piece of output to onOutput as it arrives (for live progress). */
+    Result run(String script, int timeoutSec, Map<String, String> env, java.util.function.Consumer<String> onOutput) throws Exception {
+        Result r = runOnce(script, timeoutSec, env, onOutput);
         if (!noSeccomp && r.code != 0 && (r.output.contains("Function not implemented") || r.output.contains("Bad system call") || r.output.contains("seccomp"))) {
             noSeccomp = true;
-            r = runOnce(script, timeoutSec, env);
+            r = runOnce(script, timeoutSec, env, onOutput);
         }
         return r;
     }
 
-    private Result runOnce(String script, int timeoutSec, Map<String, String> env) throws Exception {
+    private Result runOnce(String script, int timeoutSec, Map<String, String> env, java.util.function.Consumer<String> onOutput) throws Exception {
         Process p = command(script, env).start();
         StringBuilder out = new StringBuilder();
         Thread reader = new Thread(() -> {
@@ -164,7 +169,9 @@ final class Linux {
                 int n;
                 while ((n = in.read(buf)) > 0) {
                     synchronized (out) {
-                        out.append(new String(buf, 0, n, StandardCharsets.UTF_8));
+                        String chunk = new String(buf, 0, n, StandardCharsets.UTF_8);
+                        out.append(chunk);
+                        if (onOutput != null) { try { onOutput.accept(chunk); } catch (RuntimeException ignored) {} }
                         if (out.length() > 200_000) out.delete(0, out.length() - 100_000);
                     }
                 }
