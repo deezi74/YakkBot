@@ -130,6 +130,125 @@ Never promise refunds or dates the user has not approved.`),
 Ask, one at a time: What went well today? What was hard? What did you learn? What is the one thing for tomorrow?
 Reflect back in 3 lines, kindly and honestly. Save the entry to the Library as journal/<date>.md.
 Notice patterns over weeks and mention them gently.`),
+
+  // ---------- productivity ----------
+  S('inbox-triage', 'Inbox triage', 'Productivity', '📥', 'Sort email into reply now, later, and ignore, with drafts.', `
+1. Read the newest unread emails (connected Gmail/Outlook app, or what the user pastes).
+2. Group them: needs a reply today, can wait, just FYI, junk.
+3. For "today" ones, draft short replies in the user's tone. Never send without a yes.
+4. One-line summary at the top: how many, what is urgent.`),
+  S('weekly-plan', 'Plan my week', 'Productivity', '🗂️', 'Turn goals and the calendar into a realistic week.', `
+1. Look at the calendar for the next 7 days and any open tasks.
+2. Ask for the top 3 goals this week (remember recurring ones).
+3. Block focus time for each goal around existing events; leave buffers.
+4. Output a day-by-day plan and offer to add the blocks to the calendar.`),
+  S('focus-session', 'Focus session', 'Productivity', '🎯', 'A timed focus block with a goal, timer and check-in.', `
+1. Ask what to finish and how long (default 25 minutes).
+2. Set a phone timer and say the single goal back in one line.
+3. When it ends, ask what got done, log it, and offer a 5-minute break timer and the next block.`),
+  S('habit-tracker', 'Habit tracker', 'Health', '✅', 'Track daily habits and streaks with gentle check-ins.', `
+1. Keep the habit list and streaks in memory and in the Library (habits.md).
+2. On check-in, ask which ones were done today; update streaks.
+3. Celebrate streaks, and for a missed day suggest the smallest version to keep going.
+4. Weekly: show a simple table of the week.`),
+  S('meal-plan', 'Meal plan and grocery list', 'Health', '🥗', 'A week of meals that fit the diet and budget, plus a shopping list.', `
+1. Learn diet, allergies, budget, cooking time, people to feed (remember them).
+2. Plan 7 days (breakfast, lunch, dinner), reusing ingredients to cut waste.
+3. Grocery list grouped by store section with rough prices.
+4. Save both to the Library.`),
+
+  // ---------- social ----------
+  S('text-reply', 'Help me reply', 'Social', '💬', 'Draft the right reply to a text, DM or comment.', `
+1. Read the message and ask who it is from and how the user feels about it, if unclear.
+2. Give 3 replies: warm, short, and firm. Match how the user usually texts.
+3. Never send for them unless they say so (phone sms_send needs their approval).`),
+  S('gift-ideas', 'Gift ideas', 'Social', '🎁', 'Thoughtful gift ideas within a budget, with links.', `
+1. Who it is for, the occasion, budget, what they like (check connections and memory first).
+2. Give 6 ideas across price points: 2 safe, 2 personal, 2 experiences. Links and prices.
+3. Offer to set a reminder to buy and a card message.`),
+  S('birthdays', 'Birthdays and dates', 'Social', '🎂', 'Remember important dates and remind ahead of time.', `
+1. Save each person and date as a connection note and in memory.
+2. Add a calendar reminder 3 days before and on the day (phone calendar_add).
+3. On the day, offer a message draft and gift idea.`),
+
+  // ---------- creative ----------
+  S('story-writer', 'Story writer', 'Creative', '📚', 'Short stories, scripts or bedtime stories in any style.', `
+1. Ask genre, length, audience and one detail to include.
+2. Outline in 3 beats, then write with a strong opening line and a satisfying end.
+3. Offer a sequel hook or a different ending.`),
+  S('image-prompt', 'Image prompt writer', 'Creative', '🎨', 'Detailed prompts for AI image and video generators.', `
+1. Ask subject, style, mood, aspect ratio and where it will be used.
+2. Write one rich prompt: subject, setting, lighting, camera/lens or art style, color palette, details.
+3. Add 2 variations and a short negative prompt. Avoid real people's likeness and trademarks.`),
+  S('song-lyrics', 'Song lyrics', 'Creative', '🎵', 'Lyrics with verses, chorus and a hook, in any genre.', `
+1. Genre, mood, theme, any lines the user wants in.
+2. Write: verse 1, chorus (the hook), verse 2, bridge, final chorus. Keep a steady syllable count per line.
+3. Suggest tempo and a chord progression idea.`),
+
+  // ---------- content & business (more) ----------
+  S('thumbnail-title', 'Titles and thumbnails', 'Content', '🖼️', 'Click-worthy titles and thumbnail concepts for videos.', `
+1. Topic and audience.
+2. 10 title options under 60 characters (curiosity, number, how-to, bold claim); mark the top 3.
+3. 3 thumbnail concepts: main image, 2-4 word text, colors, facial expression.`),
+  S('seo-hashtags', 'SEO and hashtags', 'Content', '#️⃣', 'Keywords, hashtags and descriptions that get found.', `
+1. Topic and platform.
+2. Research what is trending (web_search, x_search).
+3. Give: 10 keywords, a 2-3 sentence description using the top ones, and hashtags (broad, niche, branded).`),
+  S('product-listing', 'Product listing', 'Business', '🏷️', 'Listings for eBay, Etsy, Amazon, Shopify or Facebook Marketplace.', `
+1. Get the item details (or read photos): brand, model, condition, size, flaws.
+2. Check sold prices for similar items (web_search) and suggest a price range.
+3. Write a title with keywords, bullet features, honest condition notes, shipping/returns line.`),
+  S('invoice-quote', 'Invoice or quote', 'Business', '🧾', 'A clean invoice or price quote, saved as a file.', `
+1. Collect: business and client details, items or services, quantities, rates, tax, due date, payment methods.
+2. Calculate totals carefully and show the math.
+3. Save it to the Library as Markdown or HTML ready to print to PDF. Number invoices in order (remember the last number).`),
+  S('contract-draft', 'Simple agreement', 'Business', '📑', 'A plain-English agreement template (general information, not legal advice).', `
+1. Ask the type (service, freelance, NDA, rental), parties, scope, payment, dates, ending terms.
+2. Draft clear sections with headings and blanks for anything unknown.
+3. Always add: "This is general information, not legal advice. Have a lawyer review it for your situation."
+4. Save it to the Library.`),
+
+  // ---------- career ----------
+  S('resume', 'Resume and cover letter', 'Career', '📄', 'A strong resume and a tailored cover letter.', `
+1. Gather work history, skills and the target job (ask for the posting link).
+2. Write achievement bullets: action + result + number.
+3. Tailor keywords to the posting. Cover letter: hook, 2 proof stories, close with a clear ask.
+4. Save both to the Library.`),
+  S('interview-prep', 'Interview practice', 'Career', '🎤', 'Practice interview questions with feedback.', `
+1. Learn the role and company (quick web_search).
+2. Ask one question at a time: behavioral, role-specific, and one curveball.
+3. After each answer, give quick feedback (STAR structure, clarity, specifics) and a stronger example.
+4. End with 3 smart questions for them to ask.`),
+
+  // ---------- tech & safety (more) ----------
+  S('security-checkup', 'Security checkup', 'Tech', '🔐', 'Lock down accounts and devices step by step.', `
+1. List the important accounts (email, bank, socials, phone).
+2. For each: strong unique password via a password manager, 2-step verification with an app or key, recovery info up to date.
+3. Phone: screen lock, updates, app permissions review, Find My Device on.
+4. Check for known breaches of the user's email (haveibeenpwned.com) and what to do if found.`),
+  S('phone-cleanup', 'Phone cleanup', 'Tech', '🧹', 'Free space, save battery and speed up the phone.', `
+1. Check battery and storage (phone tool device, battery).
+2. Suggest: clear big apps' caches, remove unused apps, move photos to cloud, turn off battery-heavy background apps.
+3. Do only what the user approves, one step at a time.`),
+
+  // ---------- research & learning (more) ----------
+  S('x-news-watch', 'News watch on X', 'Research', '🛰️', 'What people are saying right now about a topic, from X.', `
+1. Use x_search for the topic over the last 24-48 hours.
+2. Give: the top 5 posts (author, gist, link, engagement), the main opinions, and anything breaking.
+3. Separate facts from rumors. Offer to turn this into a daily routine.`),
+  S('fact-check', 'Fact-check', 'Research', '🧐', 'Check a claim against reliable sources.', `
+1. State the exact claim.
+2. Search for primary sources and reputable fact-checks (web_search, web_fetch).
+3. Verdict: true, false, misleading or unproven, with the evidence and links. Note what is still unknown.`),
+  S('explain-simply', 'Explain it simply', 'Learning', '💡', 'Explain anything in plain words with an everyday example.', `
+1. One-sentence answer first.
+2. Then a simple explanation with an everyday analogy, no jargon (define any term you must use).
+3. Offer a deeper version or a quick diagram in text.`),
+  S('language-practice', 'Language practice', 'Learning', '🗣️', 'Practice a language with conversation and corrections.', `
+1. Ask the language and level (remember both).
+2. Chat in that language at their level; keep replies short.
+3. After each message, gently correct mistakes with the right version and one short explanation.
+4. End with 5 new words from the conversation.`),
 ];
 
 export const librarySkill = (idOrName: string) => {

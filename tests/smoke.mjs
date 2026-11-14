@@ -243,6 +243,7 @@ async function run(wire) {
   check('a skill the bot learned is marked as learned', botSkills.find((s) => s.name === 'Greeting the user')?.source === 'learned', JSON.stringify(botSkills.map((s) => [s.name, s.source])));
   const lib = (await api('GET', '/skill-library')).json.skills ?? [];
   check('there is a library of ready-made skills', lib.length >= 15 && lib.every((s) => s.name && s.icon && s.body && s.category), String(lib.length));
+  check('every ready-made skill has its own id and name', new Set(lib.map((s) => s.id)).size === lib.length && new Set(lib.map((s) => s.name.toLowerCase())).size === lib.length);
   check('a ready-made skill can be added with one tap', (await api('POST', `/bots/${bot.id}/skills/library/daily-briefing`, {})).status === 200);
   const afterAdd = (await api('GET', `/bots/${bot.id}/settings`)).json.skills ?? [];
   check('it shows up as from the library', afterAdd.some((s) => s.name === 'Daily briefing' && s.source === 'library'), JSON.stringify(afterAdd.map((s) => [s.name, s.source])));

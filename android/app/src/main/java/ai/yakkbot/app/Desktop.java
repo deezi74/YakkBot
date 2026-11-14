@@ -15,7 +15,12 @@ import java.util.Map;
 final class Desktop {
     static final int VNC_PORT = 5901;
     static final String DISPLAY = ":1";
-    static final String PACKAGES = "tigervnc xfce4 xfce4-terminal mousepad dbus dbus-x11 chromium xdotool scrot font-noto font-dejavu adwaita-icon-theme";
+    /**
+     * Only the desktop parts the bots use, not the full xfce4 bundle (which also pulls a second web
+     * engine, speech synthesis and media plugins): 266 packages, about 350 MB to download, instead of
+     * 373 and 430 MB. Chromium is most of what is left.
+     */
+    static final String PACKAGES = "chromium tigervnc xfwm4 xfce4-panel xfce4-session xfce4-terminal xfdesktop dbus dbus-x11 xdotool scrot font-dejavu font-noto adwaita-icon-theme";
     private static volatile String state = null;
 
     private Desktop() {}

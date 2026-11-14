@@ -4,7 +4,7 @@ import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
 import { configApi, type ComputerDetails } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
-import { useConfigUI, type AppSection, type Theme } from '../../configStore';
+import { PALETTES, useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore, useFeatures } from '../../store';
 import { computerStatusText } from '../DetailsPanel';
 import { Icon } from '../Icon';
@@ -107,6 +107,20 @@ function GeneralSection() {
           <ThemeTile value="system" label="System" current={theme} onPick={setTheme} />
           <ThemeTile value="light" label="Light" current={theme} onPick={setTheme} />
           <ThemeTile value="dark" label="Dark" current={theme} onPick={setTheme} />
+          {(Object.keys(PALETTES) as (keyof typeof PALETTES)[]).map((id) => {
+            const p = PALETTES[id];
+            return (
+              <button key={id} type="button" role="radio" aria-checked={theme === id} className={`theme-tile${theme === id ? ' is-active' : ''}`} onClick={() => setTheme(id)}>
+                <span className="theme-tile__art" aria-hidden>
+                  <span className="theme-tile__side" style={{ background: p.sidebar }} />
+                  <span className="theme-tile__pane" style={{ background: p.pane }}>
+                    <i style={{ background: p.base === 'dark' ? '#FFFFFF1F' : '#1C1C1C14' }} /><i style={{ background: p.bubble }} /><b style={{ background: p.accent }} />
+                  </span>
+                </span>
+                <span className="theme-tile__label">{p.label}</span>
+              </button>
+            );
+          })}
         </div>
         <div className="cfg-field__hint">System follows your device’s light or dark setting.</div>
       </section>

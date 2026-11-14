@@ -187,7 +187,7 @@
 
 .theme-tiles { display: flex; gap: 12px; flex-wrap: wrap; }
 .theme-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px; border-radius: 14px; }
-.theme-tile__art { position: relative; display: flex; width: 148px; height: 92px; border-radius: 10px; overflow: hidden; box-shadow: var(--color-border-secondary) 0 0 0 1px; transition: box-shadow 120ms; }
+.theme-tile__art { position: relative; display: flex; width: 132px; height: 84px; border-radius: 10px; overflow: hidden; box-shadow: var(--color-border-secondary) 0 0 0 1px; transition: box-shadow 120ms; }
 .theme-tile:hover .theme-tile__art { box-shadow: var(--color-text-quaternary) 0 0 0 1px; }
 .theme-tile.is-active .theme-tile__art { box-shadow: var(--color-border-focus) 0 0 0 2px; }
 .theme-tile__side { width: 36%; background: #F5F5F5; }
