@@ -173,7 +173,7 @@ export interface Task { id: string; botId: string; title: string; state: 'workin
 
 export interface Memory { id: string; botId: string; text: string; createdAt: number; source?: 'chat' | 'learned' }
 
-export interface Skill { id: string; botId: string; name: string; description: string; body: string; createdAt: number; updatedAt: number }
+export interface Skill { id: string; botId: string; name: string; description: string; body: string; createdAt: number; updatedAt: number; source?: 'user' | 'learned' | 'library' }
 
 export interface LibraryFile { name: string; size: number; modifiedAt: number; isDir: boolean }
 

@@ -9,6 +9,7 @@ import { Icon } from '../Icon';
 import { Modal } from '../modals/Modal';
 import { Glyph } from './glyphs';
 import { ConnectionsTab } from './ConnectionsTab';
+import { SkillLibrary } from './SkillLibrary';
 import { ConfirmButton, Field, Segmented, Switch, nextRunLabel, shortDate } from './ui';
 
 const EFFORTS: { value: Bot['effort']; label: string }[] = [
@@ -269,19 +270,26 @@ function LookPicker({ shape, color, onShape, onColor }: { shape: AvatarShape; co
 
 function SkillsTab({ bot, skills, onChange }: { bot: Bot; skills: Skill[] | undefined; onChange: () => void }) {
   const [editing, setEditing] = useState<string | 'new' | null>(null);
+  const [view, setView] = useState<'mine' | 'library'>('mine');
+  const SOURCE: Record<string, string> = { learned: `Learned by ${bot.name}`, library: 'From the library', user: 'Written by you' };
   return (
     <div className="cfg-page">
       <div className="cfg-page__head">
         <div>
           <div className="cfg-page__title">Skills</div>
-          <div className="cfg-page__sub">Step-by-step how-tos {bot.name} follows for specific jobs. Ask for one by name in chat.</div>
+          <div className="cfg-page__sub">Step-by-step how-tos {bot.name} follows for specific jobs. Add ready-made ones from the library, write your own, or let {bot.name} learn them as it works.</div>
         </div>
-        {editing !== 'new' && <button type="button" className="cfg-btn cfg-btn--primary" onClick={() => setEditing('new')}><Icon name="plus" size={12} /> New skill</button>}
+        {view === 'mine' && editing !== 'new' && <button type="button" className="cfg-btn cfg-btn--primary" onClick={() => setEditing('new')}><Icon name="plus" size={12} /> New skill</button>}
       </div>
+      <div className="skill-lib__switch" role="tablist">
+        <button type="button" role="tab" aria-selected={view === 'mine'} className={`skill-lib__cat${view === 'mine' ? ' is-on' : ''}`} onClick={() => setView('mine')}>{bot.name}’s skills{skills ? ` (${skills.length})` : ''}</button>
+        <button type="button" role="tab" aria-selected={view === 'library'} className={`skill-lib__cat${view === 'library' ? ' is-on' : ''}`} onClick={() => setView('library')}>Skill library</button>
+      </div>
+      {view === 'library' ? <SkillLibrary botId={bot.id} have={skills ?? []} onAdded={onChange} /> : <>
       {editing === 'new' && <SkillEditor botId={bot.id} onDone={() => { setEditing(null); onChange(); }} />}
       {!skills ? <div className="cfg-empty">Loading…</div> : skills.length === 0 && editing !== 'new' ? (
         <div className="cfg-empty">
-          No skills yet. Write down how you like something done, like “Prep for a sales call”, and {bot.name} will follow it every time.
+          No skills yet. Open the <button type="button" className="link-btn" onClick={() => setView('library')}>Skill library</button> to add ready-made ones, write your own, or just work with {bot.name}: it saves skills as it learns.
         </div>
       ) : (
         <div className="cfg-list">
@@ -293,6 +301,7 @@ function SkillsTab({ bot, skills, onChange }: { bot: Bot; skills: Skill[] | unde
               <div className="cfg-item__text">
                 <div className="cfg-item__title">{s.name}</div>
                 <div className="cfg-item__sub">{s.description || s.body.split('\n')[0]}</div>
+                <div className={`skill-source is-${s.source ?? 'user'}`}>{SOURCE[s.source ?? 'user']}</div>
               </div>
               <div className="cfg-item__actions">
                 <button type="button" className="cfg-icon-btn" onClick={() => setEditing(s.id)} aria-label={`Edit ${s.name}`} title="Edit"><Icon name="edit" size={14} /></button>
@@ -302,6 +311,7 @@ function SkillsTab({ bot, skills, onChange }: { bot: Bot; skills: Skill[] | unde
           ))}
         </div>
       )}
+      </>}
     </div>
   );
 }

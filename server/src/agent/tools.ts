@@ -5,6 +5,7 @@ import { hub } from '../lib/hub.js';
 import { box } from '../box.js';
 import { env } from '../env.js';
 import { deleteSkill, findSkill, listSkills, saveSkill } from '../skills.js';
+import { SKILL_LIBRARY, librarySkill } from '../skillLibrary.js';
 import { addConnection, appendRow, getBotRow, listConnections, listRoutines, removeConnection, toRoutine, describeCron } from '../store.js';
 import { executeComposio, innerToolSlugs, isReadOnlySlug, toolkitInfo } from '../composio.js';
 import { scheduleRoutine, unscheduleRoutine } from '../routines.js';
@@ -238,9 +239,9 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: 'skill',
-    description: 'Your skills: reusable know-how for a kind of task (steps, commands that worked, pitfalls, the user\'s preferences for it). list shows them; view (name) opens one; save (name, description, body) creates one or rewrites the one with that name; delete (name). Save a skill after you work out how to do something you are likely to do again, and improve it when you find a better way or the user corrects you.',
+    description: 'Your skills: reusable know-how for a kind of task (steps, commands that worked, pitfalls, the user\'s preferences for it). list shows them; view (name) opens one; save (name, description, body) creates one or rewrites the one with that name; delete (name); library lists ready-made skills; install (name) adds one from the library. Save a skill after you work out how to do something you are likely to do again, and improve it when you find a better way or the user corrects you.',
     parameters: obj({
-      action: { type: 'string', enum: ['list', 'view', 'save', 'delete'] },
+      action: { type: 'string', enum: ['list', 'view', 'save', 'delete', 'library', 'install'] },
       name: { type: 'string' },
       description: { type: 'string', description: 'save: one line on when to use it.' },
       body: { type: 'string', description: 'save: the skill itself, in Markdown: when to use it, the steps, what to watch out for.' },
@@ -255,6 +256,13 @@ export const TOOLS: ToolDef[] = [
       if (a.action === 'view') {
         const s = findSkill(ctx.botId, String(a.name ?? ''));
         return s ? { output: `# ${s.name}\n${s.description ? `${s.description}\n\n` : ''}${s.body}` } : { output: `No skill named ${a.name}.`, isError: true };
+      }
+      if (a.action === 'library') return { output: SKILL_LIBRARY.map((s) => `- ${s.name} [${s.category}]: ${s.description}`).join('\n') };
+      if (a.action === 'install') {
+        const lib = librarySkill(String(a.name ?? ''));
+        if (!lib) return { output: `No ready-made skill named ${a.name}. Use action library to see them.`, isError: true };
+        saveSkill(ctx.userId, ctx.botId, { name: lib.name, description: lib.description, body: lib.body }, 'library');
+        return { output: `Added the skill "${lib.name}":\n${lib.body}` };
       }
       if (a.action === 'delete') return deleteSkill(ctx.userId, ctx.botId, String(a.name ?? '')) ? { output: 'Deleted.' } : { output: `No skill named ${a.name}.`, isError: true };
       if (a.action === 'save') {

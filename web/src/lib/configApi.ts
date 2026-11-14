@@ -35,6 +35,8 @@ export interface ComputerDetails {
 
 export interface Connection { id: string; kind: 'bot' | 'person'; otherBotId: string | null; name: string; relation: string; note: string; createdAt: number }
 
+export interface LibrarySkill { id: string; name: string; category: string; icon: string; description: string; body: string }
+
 export interface SetupJob { id: string; state: 'idle' | 'running' | 'done' | 'failed'; log: string; startedAt: number | null; available: boolean; why: string | null }
 
 export interface ComputerSetup {
@@ -100,6 +102,8 @@ export const configApi = {
 
   /** Built-in engine: model keys are kept on the device and shared by every bot. */
   setProvider: (id: string, p: { apiKey?: string | null; baseUrl?: string | null; defaultModel?: string | null }) => req<{ providers: EngineProvider[] }>('PUT', `/providers/${id}`, p),
+  skillLibrary: () => req<{ skills: LibrarySkill[] }>('GET', '/skill-library').then((r) => r.skills),
+  addLibrarySkill: (botId: string, id: string) => req<{ ok: true }>('POST', `/bots/${botId}/skills/library/${id}`),
   learning: () => req<{ autoLearn: boolean }>('GET', '/learning'),
   setLearning: (autoLearn: boolean) => req<{ autoLearn: boolean }>('PUT', '/learning', { autoLearn }),
   providers: () => req<{ providers: EngineProvider[] }>('GET', '/providers').then((r) => r.providers),

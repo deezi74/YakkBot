@@ -240,6 +240,12 @@ async function run(wire) {
   check('the bot learns from the turn by itself', !!learnedRow && /Learned from this: .*(learned|improved) the skill “Greeting the user”/.test(learnedRow.body.text), learnedRow?.body.text ?? JSON.stringify(rs.slice(-2)));
   const botSkills = (await api('GET', `/bots/${bot.id}/settings`)).json.skills ?? [];
   check('the learned skill is in its Skills list', botSkills.some((s) => s.name === 'Greeting the user'), JSON.stringify(botSkills).slice(0, 200));
+  check('a skill the bot learned is marked as learned', botSkills.find((s) => s.name === 'Greeting the user')?.source === 'learned', JSON.stringify(botSkills.map((s) => [s.name, s.source])));
+  const lib = (await api('GET', '/skill-library')).json.skills ?? [];
+  check('there is a library of ready-made skills', lib.length >= 15 && lib.every((s) => s.name && s.icon && s.body && s.category), String(lib.length));
+  check('a ready-made skill can be added with one tap', (await api('POST', `/bots/${bot.id}/skills/library/daily-briefing`, {})).status === 200);
+  const afterAdd = (await api('GET', `/bots/${bot.id}/settings`)).json.skills ?? [];
+  check('it shows up as from the library', afterAdd.some((s) => s.name === 'Daily briefing' && s.source === 'library'), JSON.stringify(afterAdd.map((s) => [s.name, s.source])));
   check('learning can be turned off', (await api('PUT', '/learning', { autoLearn: false })).json.autoLearn === false);
   await api('PUT', '/learning', { autoLearn: true });
 
