@@ -36,10 +36,21 @@ final class Desktop {
         if (state != null && state.startsWith("installing")) return;
         Linux linux = new Linux(c);
         if (!linux.installed()) throw new IllegalStateException("Set up YakkBot's Linux first.");
-        state = "installing: downloading the desktop and Chromium (about 600 MB)";
+        state = "installing: getting the package list";
         new Thread(() -> {
+            File log = new File(linux.base, "desktop-install.log");
             try {
-                Linux.Result r = linux.run("apk add --no-progress " + PACKAGES, 2400, null);
+                Linux.write(log, "");
+                // apk prints "(45/231) Installing chromium (...)": show that as it goes, so it never looks stuck.
+                java.util.regex.Pattern step = java.util.regex.Pattern.compile("\\((\\d+)/(\\d+)\\) (Installing|Upgrading|Executing) ([^\\s(]+)");
+                Linux.Result r = linux.run("apk update && apk add --no-progress " + PACKAGES, 3600, null, chunk -> {
+                    try (java.io.FileWriter w = new java.io.FileWriter(log, true)) { w.write(chunk); } catch (java.io.IOException ignored) {}
+                    java.util.regex.Matcher m = step.matcher(chunk);
+                    String last = null;
+                    while (m.find()) last = "installing: " + m.group(1) + " of " + m.group(2) + " packages (" + m.group(4) + ")";
+                    if (last != null) state = last;
+                    else if (chunk.contains("fetch ")) state = "installing: getting the package list";
+                });
                 if (r.code != 0) throw new IllegalStateException(Linux.tail(r.output, 600));
                 state = "installing: setting it up";
                 String pw = linux.secret("vnc.secret").substring(0, 8);

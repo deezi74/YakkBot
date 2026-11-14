@@ -131,3 +131,8 @@
 .talkbar__text { white-space: normal; flex: 1; }
 .talkbar__btn { flex-shrink: 0; height: 32px; padding: 0 12px; border-radius: 999px; background: color-mix(in srgb, currentColor 18%, transparent); color: inherit; font-weight: 600; font-size: 13px; }
 .talkbar__end { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #D92D20; }
+
+.get-computer__bar { position: relative; height: 6px; margin-top: 10px; border-radius: 3px; overflow: hidden; background: var(--color-bg-hover, #0000001a); }
+.get-computer__bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--bot-action, #0A84FF); transition: width 400ms ease-out; }
+.get-computer__bar.is-busy > i { animation: bar-slide 1.4s ease-in-out infinite; }
+@keyframes bar-slide { from { left: -30%; } to { left: 100%; } }
