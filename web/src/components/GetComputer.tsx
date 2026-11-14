@@ -50,7 +50,7 @@ export function GetComputer({ bot }: { bot: Bot }) {
             ? <>A desktop with a browser your bots use while you watch. On a phone in Termux, run <code>yakkbot desktop setup</code>.</>
             : installing ? state.replace(/^installing:\s*/, '').replace(/^./, (c) => c.toUpperCase()) + '. You can keep chatting.'
             : state === 'ready' ? 'Starting it up…'
-            : 'A desktop with a Chrome browser your bots use while you watch, and you can take over any time. About 600 MB.'}
+            : 'A desktop with a Chrome browser your bots use while you watch, and you can take over any time. About 350 MB; it takes 10 to 30 minutes on a phone, and you can keep chatting.'}
         </div>
         {installing && (() => {
           const m = /(\d+) of (\d+)/.exec(state);
