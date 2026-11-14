@@ -70,10 +70,59 @@ jobs:
           YAKK_KEY_ALIAS: ${{ secrets.YAKK_KEY_ALIAS }}
           YAKK_KEY_PASSWORD: ${{ secrets.YAKK_KEY_PASSWORD }}
         run: gradle --no-daemon assembleRelease && cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/yakkbot.apk"
+      - name: Require the signing key
+        run: |
+          # Every release must carry the same signature, or phones cannot update in place.
+          if [ -z "$YAKK_KEYSTORE" ]; then echo "::error::Add the YAKK_KEYSTORE_BASE64, YAKK_KEYSTORE_PASSWORD, YAKK_KEY_ALIAS and YAKK_KEY_PASSWORD secrets (Settings > Secrets and variables > Actions) before releasing."; exit 1; fi
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "YakkBot $TAG" --notes "Android app: download yakkbot.apk below, open it on your phone, and tap Set up YakkBot. No Termux needed."
+          # Releases are named after the app version (v0.8.0), which the app's Update button compares with its own.
+          VERSION="$(sed -n "s/.*versionName '\\(.*\\)'.*/\\1/p" android/app/build.gradle)"
+          TAG="${{ github.ref_type == 'tag' && github.ref_name || '' }}"; TAG="${TAG:-v$VERSION}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"; echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --latest --title "YakkBot $TAG" --notes "Android app: download yakkbot.apk below, open it on your phone, and tap Set up YakkBot. No Termux needed. Already installed? Open Settings › General › Check for updates, or update through F-Droid."
           gh release upload "$TAG" yakkbot.apk --clobber
+
+      # YakkBot's own F-Droid repository on GitHub Pages: add it in F-Droid once and updates arrive there.
+      # Signed with the app's key, so it only runs once the signing key is set.
+      - name: Update the F-Droid repository
+        if: env.YAKK_KEYSTORE != ''
+        env:
+          YAKK_KEYSTORE_PASSWORD: ${{ secrets.YAKK_KEYSTORE_PASSWORD }}
+          YAKK_KEY_ALIAS: ${{ secrets.YAKK_KEY_ALIAS }}
+          YAKK_KEY_PASSWORD: ${{ secrets.YAKK_KEY_PASSWORD }}
+        run: |
+          set -e
+          pip install --quiet fdroidserver
+          git fetch origin gh-pages:gh-pages 2>/dev/null || true
+          git worktree add -f "$RUNNER_TEMP/site" gh-pages 2>/dev/null || { git worktree add --detach "$RUNNER_TEMP/site" && (cd "$RUNNER_TEMP/site" && git checkout --orphan gh-pages && git rm -rqf . || true); }
+          W="$RUNNER_TEMP/fdroid"; mkdir -p "$W/repo" "$W/metadata"
+          cp fdroid/metadata/*.yml "$W/metadata/"
+          cp "$RUNNER_TEMP/site/fdroid/repo/"*.apk "$W/repo/" 2>/dev/null || true
+          cp yakkbot.apk "$W/repo/yakkbot-$VERSION.apk"
+          # Keep the three newest builds.
+          ls -t "$W/repo/"*.apk | tail -n +4 | xargs -r rm -f
+          cat > "$W/config.yml" <<EOF
+          repo_url: https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/fdroid/repo
+          repo_name: YakkBot
+          repo_description: YakkBot updates, straight from the YakkBot builds.
+          repo_keyalias: $YAKK_KEY_ALIAS
+          keystore: $YAKK_KEYSTORE
+          keystorepass: "$YAKK_KEYSTORE_PASSWORD"
+          keypass: "$YAKK_KEY_PASSWORD"
+          keydname: CN=YakkBot, O=YakkBot
+          sdk_path: $ANDROID_HOME
+          EOF
+          chmod 600 "$W/config.yml"
+          (cd "$W" && fdroid update --pretty)
+          rm -rf "$RUNNER_TEMP/site/fdroid"; mkdir -p "$RUNNER_TEMP/site/fdroid"
+          cp -r "$W/repo" "$RUNNER_TEMP/site/fdroid/repo"
+          FP="$(keytool -list -keystore "$YAKK_KEYSTORE" -storepass "$YAKK_KEYSTORE_PASSWORD" -alias "$YAKK_KEY_ALIAS" 2>/dev/null | sed -n 's/.*(SHA-256): //p' | tr -d ':')"
+          URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/fdroid/repo"
+          sed -e "s|fdroidrepos://__URL__|fdroidrepos://${URL#https://}|g" -e "s|__URL__|$URL|g" -e "s|__FP__|$FP|g" -e "s|__VERSION__|$VERSION|g" fdroid/index.html > "$RUNNER_TEMP/site/index.html"
+          touch "$RUNNER_TEMP/site/.nojekyll"
+          cd "$RUNNER_TEMP/site"
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && (git diff --cached --quiet || git commit -qm "F-Droid repository: YakkBot $VERSION") && git push -q origin gh-pages

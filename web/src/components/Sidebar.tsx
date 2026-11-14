@@ -7,6 +7,7 @@ import { displayName, useFeatures, useStore } from '../store';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
 import { Conversations } from './Conversations';
+import { UpdateCard } from './UpdateCard';
 import { Menu } from './Menu';
 import { Glyph } from './config/glyphs';
 
@@ -81,6 +82,7 @@ export function Sidebar() {
       </div>
 
       <div className="sidebar__scroll">
+        <UpdateCard compact />
         <TasksIsland />
         {f.computer !== 'none' && (
           <button type="button" className="team-computer-link" onClick={() => set({ teamComputerOpen: true })}>

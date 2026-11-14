@@ -361,6 +361,18 @@ public class MainActivity extends Activity {
             });
         }
         @JavascriptInterface public void stopListening() { ui.post(() -> { if (voice != null) voice.stopListening(); }); }
+        /** One-tap updates (see Updater). */
+        @JavascriptInterface public void checkUpdate() { Updater.checkAsync(); }
+        @JavascriptInterface public String lastUpdateCheck() { return Updater.lastCheck(); }
+        @JavascriptInterface public void installUpdate(String url) {
+            if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+                ui.post(() -> { toast("Allow YakkBot to install updates, then tap Update again."); open(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))); });
+                return;
+            }
+            Updater.install(MainActivity.this, url);
+        }
+        @JavascriptInterface public String updateStatus() { return Updater.status().toString(); }
+        @JavascriptInterface public String appVersion() { return BuildConfig.VERSION_NAME; }
         @JavascriptInterface public void restartServer() { ui.post(() -> { BridgeService.restartServer(MainActivity.this); toast("Restarting YakkBot…"); }); }
         @JavascriptInterface public void setLan(boolean on) {
             ui.post(() -> { Prefs.setLan(MainActivity.this, on); BridgeService.restartServer(MainActivity.this); toast(on ? "Opening YakkBot to your Wi-Fi…" : "YakkBot is on this phone only."); });

@@ -170,6 +170,17 @@ with models that accept images.
 On a phone, **swipe right** anywhere in a chat to slide in your bots, the chats with the current
 bot, your profile circle and settings; swipe left to go back.
 
+## Install and update
+
+- **Direct:** install [yakkbot.apk](https://github.com/deezi74/YakkBot/releases/latest/download/yakkbot.apk).
+  Updates: **Settings › General › Check for updates** (one tap, keeps everything).
+- **F-Droid:** open https://deezi74.github.io/YakkBot and tap **Add to F-Droid**, then install
+  YakkBot from F-Droid; updates arrive there.
+
+Every release is signed with the same key, so updates install over the app and keep chats,
+models and the computer. Releases need the `YAKK_KEYSTORE_BASE64`, `YAKK_KEYSTORE_PASSWORD`,
+`YAKK_KEY_ALIAS` and `YAKK_KEY_PASSWORD` repository secrets.
+
 ## The bots' computer
 
 Open **Settings › Computer** and pick where your bots work. Everything is set up in the app:
