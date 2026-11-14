@@ -1,7 +1,7 @@
 import { db, now } from '../db.js';
-import { env } from '../env.js';
+import { env, getAppSettings, setKeyLookup } from '../env.js';
 import type { EngineProvider } from '../types.js';
-import { bridge, pairing } from '../device.js';
+import { bridge, pairing, appEngine, refreshAppEngine } from '../device.js';
 import { engine as localEngine, installedModels } from './localModels.js';
 
 /**
@@ -35,6 +35,8 @@ export const PROVIDERS: ProviderDef[] = [
   { id: 'xai', name: 'Grok (xAI)', wire: 'openai', baseUrl: 'https://api.x.ai/v1', envKey: 'XAI_API_KEY', models: [env.xaiModel], keyHint: 'xai-…' },
   { id: 'gemini', name: 'Gemini (Google)', wire: 'openai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', envKey: 'GEMINI_API_KEY', models: [] },
   { id: 'groq', name: 'Groq', wire: 'openai', baseUrl: 'https://api.groq.com/openai/v1', envKey: 'GROQ_API_KEY', models: [], keyHint: 'gsk_…' },
+  // One free endpoint over many free AI tiers (github.com/tashfeenahmed/freellmapi); "auto" lets it route.
+  { id: 'freellmapi', name: 'FreeLLMAPI (free models)', wire: 'openai', baseUrl: (process.env.FREELLMAPI_BASE_URL ?? 'http://127.0.0.1:3001/v1').replace(/\/+$/, ''), envKey: 'FREELLMAPI_KEY', models: ['auto', 'auto:fast', 'auto:smart'], keyHint: 'freellmapi-…' },
   { id: 'ollama', name: 'Ollama (local models)', wire: 'openai', baseUrl: (process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434/v1').replace(/\/+$/, ''), envKey: 'OLLAMA_API_KEY', models: [], keyless: true },
   { id: 'custom', name: 'Custom (OpenAI-compatible)', wire: 'openai', baseUrl: (process.env.CUSTOM_BASE_URL ?? process.env.OPENAI_BASE_URL ?? '').replace(/\/+$/, ''), envKey: 'CUSTOM_API_KEY', models: [] },
   // GGUF models downloaded to the phone and run by the YakkBot app (llama.cpp), offline.
@@ -59,6 +61,8 @@ export function providerKey(id: string): string {
   if (!def) return '';
   return stored(id)?.api_key || process.env[def.envKey] || '';
 }
+
+setKeyLookup((id) => { try { return stored(id)?.api_key || ''; } catch { return ''; } });
 
 export function providerBaseUrl(id: string): string {
   const def = providerDef(id);
@@ -126,12 +130,16 @@ export async function providerModels(id: string): Promise<string[]> {
 export function defaultModel(id: string): string | null {
   const def = providerDef(id);
   if (!def) return null;
+  const app = getAppSettings();
+  if (app.aiProvider === id && app.aiModel) return app.aiModel;
   if (def.id === 'phone') return stored(id)?.default_model || phoneCache.files[0] || null;
   return stored(id)?.default_model || process.env[`${id.toUpperCase()}_MODEL`] || def.models[0] || modelCache.get(id)?.models[0] || null;
 }
 
 /** The provider a bot uses when it has not picked one: the first that can run. */
 export function defaultProvider(): string | null {
+  const chosen = getAppSettings().aiProvider;
+  if (chosen && providerConnected(chosen)) return chosen;
   const preferred = process.env.YAKK_PROVIDER;
   if (preferred && providerConnected(preferred)) return preferred;
   return PROVIDERS.find((p) => providerConnected(p.id))?.id ?? null;
@@ -142,18 +150,19 @@ export async function listProviders(): Promise<EngineProvider[]> {
   await phoneModels();
   for (const p of PROVIDERS) {
     // On-device models: the app's engine, or llama-server here.
-    if (p.id === 'phone' && !(env.inApp ? pairing() : localEngine())) continue;
+    // On-device models are always offered: without a model yet, picking it leads to the download page.
     const connected = providerConnected(p.id);
     out.push({
       id: p.id, name: p.name, kind: 'api_key', connected,
       models: (connected ? await providerModels(p.id) : p.models).slice(0, 200),
-      keyless: !!p.keyless, needsBaseUrl: p.id === 'custom' || p.id === 'ollama',
-      baseUrl: p.id === 'custom' || p.id === 'ollama' ? providerBaseUrl(p.id) : undefined,
+      keyless: !!p.keyless, needsBaseUrl: p.id === 'custom' || p.id === 'ollama' || p.id === 'freellmapi',
+      baseUrl: p.id === 'custom' || p.id === 'ollama' || p.id === 'freellmapi' ? providerBaseUrl(p.id) : undefined,
       keyHint: p.keyHint, fromEnv: connected && !stored(p.id)?.api_key && !!process.env[p.envKey],
       defaultModel: defaultModel(p.id),
     });
   }
-  return out.sort((a, b) => Number(b.connected) - Number(a.connected));
+  // Ready providers first, then models on this device (free, no key), then the rest.
+  return out.sort((a, b) => Number(b.connected) - Number(a.connected) || Number(b.id === 'phone') - Number(a.id === 'phone'));
 }
 
 // ---------- models on the phone (the YakkBot app's llama.cpp) ----------
@@ -163,8 +172,7 @@ const phoneCache: { at: number; files: string[] } = { at: 0, files: [] };
 /** The .gguf files downloaded in the app, cached for a few seconds. Empty without the app. */
 export async function phoneModels(): Promise<string[]> {
   // Outside the app: the models this server downloaded, if llama-server is installed.
-  if (!env.inApp) return (phoneCache.files = localEngine() ? installedModels().map((m) => m.file) : []);
-  if (!pairing()) return (phoneCache.files = []);
+  if (!(await refreshAppEngineSoon())) return (phoneCache.files = localEngine() ? installedModels().map((m) => m.file) : []);
   if (Date.now() - phoneCache.at < 5000) return phoneCache.files;
   phoneCache.at = Date.now();
   try {
@@ -172,6 +180,11 @@ export async function phoneModels(): Promise<string[]> {
     phoneCache.files = s.engine ? (s.installed ?? []).map((m: any) => String(m.file)) : [];
   } catch { /* the app is not answering: keep what we knew */ }
   return phoneCache.files;
+}
+
+/** The app's engine when it is there, checked at most every few seconds. */
+async function refreshAppEngineSoon(): Promise<boolean> {
+  return appEngine() || (Date.now() - phoneCache.at > 5000 ? refreshAppEngine() : false);
 }
 
 export const forgetPhoneModels = () => { phoneCache.at = 0; };

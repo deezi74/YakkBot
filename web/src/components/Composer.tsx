@@ -7,6 +7,7 @@ import { Menu } from './Menu';
 import { endCall, isCallActive, startCall, useVoice } from '../voice/call';
 import { useDictation } from '../voice/dictation';
 import { useBrowserDictation } from '../voice/browserDictation';
+import { speechSettings, startTalk, stopTalk, useTalk } from '../voice/talk';
 
 const MAX_H = 200;
 const drafts = new Map<string, string>();
@@ -79,6 +80,13 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
   const dictation = f.voice ? serverDictation : browserDictation;
   const canDictate = f.voice || browserDictation.supported;
   const inCall = useVoice((s) => isCallActive(s) && s.botId === bot.id);
+  const talking = useTalk((s) => s.status !== 'idle' && s.botId === bot.id);
+  // Voice: Grok's realtime call when chosen in Settings › Voice, otherwise talk mode with this bot's own model.
+  const talk = async () => {
+    const s = await speechSettings().catch(() => null);
+    if (s?.voiceMode === 'realtime' && f.voice) startCall(bot.id);
+    else startTalk(bot.id);
+  };
 
   const hasText = text.trim().length > 0;
   const multiline = text.includes('\n') || (ref.current?.scrollHeight ?? 0) > 30;
@@ -143,12 +151,12 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
             <button
               type="button"
               className="composer__cta"
-              onClick={hasText || !f.voice ? send : () => startCall(bot.id)}
-              disabled={hasText ? sending : !f.voice}
-              aria-label={hasText || !f.voice ? 'Send' : `Start voice chat with ${bot.name}`}
-              title={hasText || !f.voice ? 'Send (Enter)' : 'Start voice chat'}
+              onClick={hasText ? send : talking ? stopTalk : talk}
+              disabled={hasText ? sending : false}
+              aria-label={hasText ? 'Send' : talking ? 'End talk mode' : `Talk with ${bot.name}`}
+              title={hasText ? 'Send (Enter)' : talking ? 'End talk mode' : 'Talk (voice)'}
             >
-              <Icon name={hasText || !f.voice ? 'arrow_up' : 'voice_a'} size={16} />
+              <Icon name={hasText ? 'arrow_up' : talking ? 'stop' : 'voice_a'} size={16} />
             </button>
           )}
         </div>

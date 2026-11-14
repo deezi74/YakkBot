@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { configApi, type SetupJob } from '../../lib/configApi';
+import { configApi, type SetupJob, type SetupJobId } from '../../lib/configApi';
 
 /** A button that runs one of the server's fixed setup jobs (Termux/Linux) and shows its progress. */
-export function SetupJobButton({ job, label, onDone }: { job: 'engine' | 'desktop'; label: string; onDone?: () => void }) {
+export function SetupJobButton({ job, label, onDone }: { job: SetupJobId; label: string; onDone?: () => void }) {
   const [s, setS] = useState<SetupJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { configApi.setupJob(job).then(setS).catch(() => {}); }, [job]);

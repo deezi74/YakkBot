@@ -1,3 +1,4 @@
+export type SetupJobId = 'engine' | 'desktop' | 'voice' | 'freellmapi';
 import type { Bot, ComputerState, EngineInfo, EngineProvider, LibraryFile, Memory, Routine, Skill, Task, Toolkit } from '@shared/types';
 import { ApiError } from './api';
 
@@ -72,8 +73,8 @@ export const configApi = {
   downloadFile: (botId: string, path: string) => req<{ url: string }>('POST', `/bots/${botId}/files/download`, { path }),
 
   computerDetails: () => req<ComputerDetails>('GET', '/computer/details'),
-  setupJob: (job: 'engine' | 'desktop') => req<SetupJob>('GET', `/setup/${job}`),
-  startSetupJob: (job: 'engine' | 'desktop') => req<SetupJob>('POST', `/setup/${job}`),
+  setupJob: (job: SetupJobId) => req<SetupJob>('GET', `/setup/${job}`),
+  startSetupJob: (job: SetupJobId) => req<SetupJob>('POST', `/setup/${job}`),
   connections: (botId: string) => req<{ connections: Connection[] }>('GET', `/bots/${botId}/connections`).then((r) => r.connections),
   addConnection: (botId: string, c: { kind: 'bot' | 'person'; otherBotId?: string; name?: string; relation?: string; note?: string }) => req<{ connections: Connection[] }>('POST', `/bots/${botId}/connections`, c).then((r) => r.connections),
   removeConnection: (botId: string, id: string) => req<{ connections: Connection[] }>('DELETE', `/bots/${botId}/connections/${id}`).then((r) => r.connections),
@@ -99,6 +100,9 @@ export const configApi = {
 
   /** Built-in engine: model keys are kept on the device and shared by every bot. */
   setProvider: (id: string, p: { apiKey?: string | null; baseUrl?: string | null; defaultModel?: string | null }) => req<{ providers: EngineProvider[] }>('PUT', `/providers/${id}`, p),
+  providers: () => req<{ providers: EngineProvider[] }>('GET', '/providers').then((r) => r.providers),
+  modelDefaults: () => req<{ provider: string | null; model: string | null; chosen: { provider: string | null; model: string | null } }>('GET', '/providers/defaults'),
+  setModelDefaults: (p: { provider: string | null; model: string | null; applyToAll?: boolean }) => req<{ ok: true; provider: string | null; model: string | null }>('PUT', '/providers/defaults', p),
   removeProvider: (id: string) => req<{ providers: EngineProvider[] }>('DELETE', `/providers/${id}`),
 
   /** The bot's soul and memory files, as text. */

@@ -28,6 +28,10 @@ export function readDotenv(file: string): Record<string, string> {
   return out;
 }
 
+/** Keys saved in the app live with the model providers; they register this lookup at start. */
+let keyLookup: (id: string) => string = () => '';
+export const setKeyLookup = (f: (id: string) => string) => { keyLookup = f; };
+
 export const envFile = process.env.YAKK_ENV_FILE ?? path.join(dataDir, '.env');
 for (const [k, v] of Object.entries(readDotenv(envFile))) if (process.env[k] === undefined) process.env[k] = v;
 
@@ -62,7 +66,10 @@ const vncPort = Number(str('VNC_PORT', '0'));
 // ---------- settings made in the app (Settings > Computer) ----------
 // Kept in <YAKK_HOME>/settings.json (mode 600) so they apply without editing .env or restarting.
 
-interface AppSettings { computer?: 'none' | 'local' | 'orgo'; orgoKey?: string; orgoComputerId?: string; orgoComputerName?: string }
+interface AppSettings { computer?: 'none' | 'local' | 'orgo'; orgoKey?: string; orgoComputerId?: string; orgoComputerName?: string; aiProvider?: string; aiModel?: string;
+  /** Voice: engine that speaks replies, the voice it uses, and what turns speech into text. */
+  tts?: string; ttsVoice?: string; ttsUrl?: string; stt?: string; voiceMode?: 'talk' | 'realtime';
+  autostartVoice?: boolean; autostartFreellmapi?: boolean }
 const settingsFile = path.join(dataDir, 'settings.json');
 let appSettings: AppSettings = {};
 try { appSettings = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch { /* none yet */ }
@@ -155,7 +162,8 @@ export const env = {
 
   // ---- add-ons ----
   composioKey: secret('COMPOSIO_API_KEY'),
-  xaiKey: secret('XAI_API_KEY'),
+  /** From the server's settings, or a Grok key added in the app (Settings › AI models). */
+  get xaiKey() { return secret('XAI_API_KEY') || keyLookup('xai'); },
   xaiModel: str('XAI_MODEL', 'grok-4.7'),
   telegramToken: secret('TELEGRAM_BOT_TOKEN'),
   /** Telegram chat ids allowed to talk to the bots. Empty = nobody (the bridge prints ids that try). */

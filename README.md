@@ -189,6 +189,27 @@ the pointer when it clicks or types. **Team computer** in the sidebar shows ever
 by side; open one to watch it large or press **Take control**, then hand it back. The Orgo key and
 choice are kept in `~/.yakkbot/settings.json` (mode 600).
 
+## Voice
+
+Tap the voice button in any chat for **talk mode**: speak, the bot answers with its own model (cloud,
+FreeLLMAPI or a GGUF on the phone), and reads the reply aloud; then it listens again. **Settings ›
+Voice** chooses:
+
+- **How bots sound**: this phone's own voice (free, offline), the **free natural voice** (edge-tts,
+  the same server D-Agent runs in Termux on port 5050; one tap sets it up and YakkBot starts it again
+  on every launch), Grok voice, OpenAI voice, or any OpenAI-style speech server (Kokoro, your PC).
+- **How bots hear you**: the device's own recognizer (free), Groq Whisper (free tier key), OpenAI
+  Whisper or Grok.
+- With a Grok key, the voice button can instead start a Grok realtime call.
+
+## FreeLLMAPI
+
+**Settings › AI models › Set up FreeLLMAPI here** clones
+[FreeLLMAPI](https://github.com/tashfeenahmed/freellmapi) into `~/freellmapi`, installs it and keeps it
+running on port 3001 (the same place D-Agent uses). Open its dashboard at `http://127.0.0.1:3001`,
+add the free provider keys you have, copy its `freellmapi-…` key into the FreeLLMAPI row, and use the
+model `auto`.
+
 ## Local models (GGUF)
 
 **Settings › On-device models** lists suggested models sized for your device's memory, searches

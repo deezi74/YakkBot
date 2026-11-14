@@ -35,6 +35,7 @@
 
     <!-- Which other apps this one may see: anything with a launcher icon (so a bot can open it), and what handles links, maps and the dialer. -->
     <queries>
+        <intent><action android:name="android.speech.RecognitionService" /></intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

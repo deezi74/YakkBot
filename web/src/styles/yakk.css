@@ -114,3 +114,20 @@
 .conn-initial { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--color-bg-hover, #0000000f); font-size: 13px; font-weight: 600; }
 .conn-form { display: grid; gap: 8px; margin-top: 12px; }
 .conn-form .cfg-btn { justify-self: start; }
+
+/* Talk mode */
+.talkbar {
+  display: flex; align-items: center; gap: 10px; margin: 0 12px 8px; padding: 8px 8px 8px 10px; border-radius: 18px;
+  background: var(--bot-action, #111); color: var(--bot-on-action, #fff); font-size: 14px;
+}
+.talkbar.is-error { background: #B42318; color: #fff; }
+.talkbar__avatar { position: relative; display: inline-flex; border-radius: 50%; }
+.talkbar.is-listening .talkbar__avatar { box-shadow: 0 0 0 calc(2px + var(--level, 0) * 10px) color-mix(in srgb, currentColor 30%, transparent); transition: box-shadow 80ms linear; }
+.talkbar.is-speaking .talkbar__avatar { animation: talk-pulse 1s ease-in-out infinite; }
+@keyframes talk-pulse { 50% { transform: scale(1.08); } }
+.talkbar__body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.talkbar__state { font-weight: 600; }
+.talkbar__heard, .talkbar__text { font-size: 12px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.talkbar__text { white-space: normal; flex: 1; }
+.talkbar__btn { flex-shrink: 0; height: 32px; padding: 0 12px; border-radius: 999px; background: color-mix(in srgb, currentColor 18%, transparent); color: inherit; font-weight: 600; font-size: 13px; }
+.talkbar__end { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #D92D20; }

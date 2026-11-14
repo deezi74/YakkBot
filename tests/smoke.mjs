@@ -30,6 +30,14 @@ const fakeBridge = http.createServer((req, res) => {
     return send(409, { error: 'nope' });
   });
 });
+// Stands in for an OpenAI-style speech server (Kokoro, a PC voice server...).
+const speechCalls = [];
+const fakeSpeech = http.createServer((req, res) => {
+  let raw = '';
+  req.on('data', (c) => (raw += c));
+  req.on('end', () => { speechCalls.push({ path: req.url, body: JSON.parse(raw || '{}') }); res.writeHead(200, { 'content-type': 'audio/mpeg' }); res.end(Buffer.from('ID3fakeaudio')); });
+});
+fakeSpeech.listen(18882, '127.0.0.1');
 const base = `http://127.0.0.1:${PORT}`;
 const procs = [];
 const start = (args, env) => {
@@ -39,7 +47,7 @@ const start = (args, env) => {
   procs.push(p);
   return p;
 };
-const cleanup = () => { fakeBridge.close(); for (const p of procs) p.kill(); fs.rmSync(home, { recursive: true, force: true }); };
+const cleanup = () => { fakeBridge.close(); fakeSpeech.close(); for (const p of procs) p.kill(); fs.rmSync(home, { recursive: true, force: true }); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let cookie = '';
@@ -174,9 +182,16 @@ async function run(wire) {
     rs = await settle(bot.id, (r) => lastAssistant(r)?.startsWith('Tool said: Text sent'));
     check('the text is sent through the app', bridgeCalls.some((c) => c.path === '/phone' && c.body.action === 'sms_send' && c.body.text === 'on my way'), JSON.stringify(bridgeCalls.slice(-2)));
   }
+  check('the computer card can ask the app about the desktop', (await api('GET', '/desktop')).json.state === 'none');
+  // Paired with the app (e.g. a Termux server opened inside it): its models run in the app's engine.
+  bridgeCalls.length = 0;
+  const viaAppModels = (await api('GET', '/phone-models')).json;
+  check('with the app paired, models come from the app', viaAppModels.recommended === 'qwen35-2b' && bridgeCalls.some((c) => c.path === '/models/status'), JSON.stringify(viaAppModels).slice(0, 200));
+  await api('DELETE', '/device');
   // Models on this device: a downloaded GGUF, run by llama-server (here a stand-in) when a bot uses it.
   const providers = (await api('GET', '/providers')).json.providers;
   const phoneProv = providers.find((p) => p.id === 'phone');
+  check('on-device models are offered right after ready providers', providers.findIndex((p) => p.id === 'phone') <= providers.filter((p) => p.connected).length, providers.map((p) => p.id).join(','));
   check('the on-device provider lists downloaded models', phoneProv?.connected && phoneProv.models.includes('tiny.gguf'), JSON.stringify(phoneProv));
   const models = (await api('GET', '/phone-models')).json;
   check('the models page shows the engine, the list and the download', models.engine === true && models.catalog?.length > 5 && models.installed?.some((m) => m.file === 'tiny.gguf'), JSON.stringify(models).slice(0, 300));
@@ -189,7 +204,6 @@ async function run(wire) {
   check('the engine is running that model', (await api('GET', '/phone-models')).json.running === 'tiny.gguf');
   await api('POST', '/phone-models/stop', {});
   await api('DELETE', `/bots/${third.id}`);
-  check('the computer card can ask the app about the desktop', (await api('GET', '/desktop')).json.state === 'none');
   await api('DELETE', `/bots/${third.id}`);
   await api('DELETE', '/device');
 
@@ -217,6 +231,28 @@ async function run(wire) {
   await api('DELETE', `/bots/${bot.id}/connections/${friend.id}`);
   check('unfriending removes both sides', !(await api('GET', `/bots/${pal.id}/connections`)).json.connections.length);
   await api('DELETE', `/bots/${pal.id}`);
+
+  // Settings › AI models: one default for all bots.
+  const provs = (await api('GET', '/providers')).json.providers.filter((p) => p.connected && p.id !== 'phone');
+  const setDef = await api('PUT', '/providers/defaults', { provider: provs[0].id, model: 'model-x', applyToAll: true });
+  const defs = (await api('GET', '/providers/defaults')).json;
+  check('a default model for all bots can be set in Settings', setDef.status === 200 && defs.provider === provs[0].id && defs.model === 'model-x', JSON.stringify(defs));
+  await api('PUT', '/providers/defaults', { provider: null, model: null });
+
+  // Voice: several engines; talk mode reads replies with the one chosen in Settings › Voice.
+  const sp = (await api('GET', '/speech/options')).json;
+  check('voice offers several ways to speak and to listen', sp.tts?.length >= 5 && sp.stt?.length >= 4 && sp.tts.some((t) => t.id === 'free') && sp.settings?.tts === 'device', JSON.stringify(sp).slice(0, 300));
+  const saved = (await api('PUT', '/speech/settings', { tts: 'custom', ttsUrl: 'http://127.0.0.1:18882/v1', ttsVoice: 'af_heart' })).json;
+  check('a custom voice server can be chosen', saved.settings?.tts === 'custom' && saved.settings.ttsUrl === 'http://127.0.0.1:18882/v1', JSON.stringify(saved.settings));
+  const audio = await fetch(`${base}/api/speech/speak`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ text: 'Hello **there**, see https://example.com' }) });
+  const said = speechCalls.pop();
+  check('a reply is read aloud through it, without markdown or links', audio.status === 200 && (audio.headers.get('content-type') ?? '').includes('audio') && said?.body.input === 'Hello there, see a link' && said.body.voice === 'af_heart', JSON.stringify(said));
+  check('a bad voice server address is refused', (await api('PUT', '/speech/settings', { ttsUrl: 'not a url' })).status === 400);
+  check('the free voice can be set up from the app', (await api('GET', '/setup/voice')).json.available === true);
+  await api('PUT', '/speech/settings', { tts: 'device' });
+  const fl = (await api('GET', '/providers')).json.providers.find((p) => p.id === 'freellmapi');
+  check('FreeLLMAPI is offered as a provider', !!fl && fl.models.includes('auto') && fl.baseUrl === 'http://127.0.0.1:3001/v1', JSON.stringify(fl));
+  check('FreeLLMAPI can be set up from the app', (await api('GET', '/setup/freellmapi')).json.available === true);
 
   const setup = (await api('GET', '/computer/setup')).json;
   check('the computer page reports where bots work', ['none', 'local', 'orgo'].includes(setup.mode) && setup.maxBots > 0, JSON.stringify(setup));

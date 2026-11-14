@@ -62,6 +62,7 @@ public class MainActivity extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private WebView web;
+    private PhoneVoice voice;
     private ScrollView setup;
     private LinearLayout steps;
     private TextView status, detail;
@@ -344,6 +345,20 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void grant(String group) { ui.post(() -> askGroup(group)); }
         /** Install the bots' desktop computer (XFCE + Chromium) in the app's Linux. */
         @JavascriptInterface public void installDesktop() { ui.post(() -> { try { Desktop.installAsync(MainActivity.this); toast("Installing the computer. This takes a while; you can keep chatting."); } catch (Exception e) { toast(e.getMessage()); } }); }
+        /** Talk mode with the phone's own voice and speech recognition (see PhoneVoice). */
+        @JavascriptInterface public void speak(String text, float rate) { ui.post(() -> phoneVoice().speak(text, rate)); }
+        @JavascriptInterface public void stopSpeaking() { ui.post(() -> { if (voice != null) voice.stopSpeaking(); }); }
+        @JavascriptInterface public void listen(String lang) {
+            ui.post(() -> {
+                if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
+                    web.evaluateJavascript("window.__yakkHeardError&&window.__yakkHeardError('Allow the microphone, then tap talk again.')", null);
+                    return;
+                }
+                phoneVoice().listen(lang);
+            });
+        }
+        @JavascriptInterface public void stopListening() { ui.post(() -> { if (voice != null) voice.stopListening(); }); }
         @JavascriptInterface public void restartServer() { ui.post(() -> { BridgeService.restartServer(MainActivity.this); toast("Restarting YakkBot…"); }); }
         @JavascriptInterface public void setLan(boolean on) {
             ui.post(() -> { Prefs.setLan(MainActivity.this, on); BridgeService.restartServer(MainActivity.this); toast(on ? "Opening YakkBot to your Wi-Fi…" : "YakkBot is on this phone only."); });
@@ -562,4 +577,14 @@ public class MainActivity extends Activity {
     private int bg() { return dark() ? 0xFF0E0E0E : 0xFFF5F5F5; }
     private int fg() { return dark() ? 0xFFF5F5F5 : 0xFF1C1C1C; }
     private int muted() { return dark() ? 0xB3F5F5F5 : 0xB31C1C1C; }
+
+    private PhoneVoice phoneVoice() {
+        if (voice == null) voice = new PhoneVoice(this, web);
+        return voice;
+    }
+
+    @Override protected void onDestroy() {
+        if (voice != null) voice.release();
+        super.onDestroy();
+    }
 }

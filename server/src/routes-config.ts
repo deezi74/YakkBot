@@ -16,10 +16,10 @@ import { openTerminal } from './desk.js';
 import path from 'node:path';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
 import { MEMORY_LIMIT, USER_LIMIT, readHomeFile, writeHomeFile, type HomeFile } from './native/home.js';
-import { bridge, BridgeError, bridgeStatus, pair, unpair } from './device.js';
+import { bridge, BridgeError, bridgeStatus, pair, unpair, appEngine, refreshAppEngine } from './device.js';
 import { forgetPhoneModels } from './native/providers.js';
 import { CATALOG, cancelDownload, deleteModel, hubFiles, localStatus, searchHub, startDownload, stopModel } from './native/localModels.js';
-import { PROVIDERS, listProviders, removeProviderKey, setProviderKey } from './native/providers.js';
+import { PROVIDERS, defaultModel, defaultProvider, listProviders, removeProviderKey, setProviderKey } from './native/providers.js';
 import { listMemories } from './engine-memory.js';
 import { idleConfig, viewerCount } from './idle.js';
 import type { LibraryFile, Skill } from './types.js';
@@ -373,6 +373,26 @@ configApi.put('/bots/:id/home/:file', async (c) => {
 
 configApi.get('/providers', async (c) => c.json({ providers: await listProviders() }));
 
+/** The model every bot uses unless it picked its own, chosen in Settings › AI models. */
+configApi.get('/providers/defaults', (c) => {
+  const s = getAppSettings();
+  return c.json({ provider: defaultProvider(), model: defaultProvider() ? defaultModel(defaultProvider()!) : null, chosen: { provider: s.aiProvider ?? null, model: s.aiModel ?? null } });
+});
+configApi.put('/providers/defaults', async (c) => {
+  const p = await c.req.json<{ provider?: string | null; model?: string | null; applyToAll?: boolean }>().catch(() => ({} as any));
+  const provider = typeof p.provider === 'string' && PROVIDERS.some((x) => x.id === p.provider) ? p.provider : undefined;
+  const model = typeof p.model === 'string' && p.model.trim() ? p.model.trim().slice(0, 160) : undefined;
+  setAppSettings({ aiProvider: provider, aiModel: provider ? model : undefined });
+  // Every bot follows the default: their own picks are cleared.
+  if (p.applyToAll) {
+    const user = c.get('user');
+    const ids = (db.prepare("SELECT id FROM bots WHERE user_id=? AND COALESCE(kind,'agent')<>'room'").all(user.id) as any[]).map((r) => r.id);
+    db.prepare("UPDATE bots SET provider=NULL, model=NULL, updated_at=? WHERE user_id=? AND COALESCE(kind,'agent')<>'room'").run(now(), user.id);
+    for (const id of ids) emitBot(id);
+  }
+  return c.json({ ok: true, provider: defaultProvider(), model: defaultProvider() ? defaultModel(defaultProvider()!) : null });
+});
+
 configApi.put('/providers/:id', async (c) => {
   const id = c.req.param('id');
   if (!PROVIDERS.some((p) => p.id === id)) return c.json({ error: 'unknown provider' }, 404);
@@ -421,13 +441,13 @@ const viaApp = async (c: any, path: string, body: Record<string, unknown> = {}, 
 };
 
 // Inside the YakkBot app its own engine runs them; anywhere else (Termux, a PC) this server does, with llama-server.
-configApi.get('/phone-models', (c) => (env.inApp ? viaApp(c, '/models/status') : c.json(localStatus())));
+configApi.get('/phone-models', async (c) => ((await refreshAppEngine()) ? viaApp(c, '/models/status') : c.json(localStatus())));
 configApi.post('/phone-models/:action', async (c) => {
   const action = c.req.param('action');
   if (!['download', 'cancel', 'delete', 'search', 'files', 'stop'].includes(action)) return c.json({ error: 'unknown action' }, 404);
   const body: any = await c.req.json().catch(() => ({}));
   forgetPhoneModels();
-  if (env.inApp) return viaApp(c, `/models/${action}`, body, action === 'search' || action === 'files' ? 45_000 : 30_000);
+  if (appEngine()) return viaApp(c, `/models/${action}`, body, action === 'search' || action === 'files' ? 45_000 : 30_000);
   try {
     switch (action) {
       case 'download': {
@@ -451,7 +471,7 @@ configApi.get('/desktop', (c) => viaApp(c, '/desktop/status'));
 configApi.post('/desktop/install', (c) => viaApp(c, '/desktop/install'));
 
 // One-tap setup for YakkBot in Termux or on Linux (the app does its own through the bridge).
-const JOB_IDS = new Set(['engine', 'desktop']);
+const JOB_IDS = new Set(['engine', 'desktop', 'voice', 'freellmapi']);
 configApi.get('/setup/:job', (c) => {
   const id = c.req.param('job');
   if (!JOB_IDS.has(id)) return c.json({ error: 'not found' }, 404);
