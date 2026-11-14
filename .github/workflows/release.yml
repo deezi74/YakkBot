@@ -70,10 +70,11 @@ jobs:
           YAKK_KEY_ALIAS: ${{ secrets.YAKK_KEY_ALIAS }}
           YAKK_KEY_PASSWORD: ${{ secrets.YAKK_KEY_PASSWORD }}
         run: gradle --no-daemon assembleRelease && cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/yakkbot.apk"
-      - name: Require the signing key
+      - name: Check the signing key
         run: |
-          # Every release must carry the same signature, or phones cannot update in place.
-          if [ -z "$YAKK_KEYSTORE" ]; then echo "::error::Add the YAKK_KEYSTORE_BASE64, YAKK_KEYSTORE_PASSWORD, YAKK_KEY_ALIAS and YAKK_KEY_PASSWORD secrets (Settings > Secrets and variables > Actions) before releasing."; exit 1; fi
+          # Without the permanent key the build is signed with a throwaway one: it installs fine, but
+          # updating to it means uninstalling first, and the F-Droid repository is skipped.
+          if [ -z "$YAKK_KEYSTORE" ]; then echo "::warning::No signing key yet (YAKK_KEYSTORE_BASE64, YAKK_KEYSTORE_PASSWORD, YAKK_KEY_ALIAS, YAKK_KEY_PASSWORD). This build cannot update over another one in place."; fi
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
