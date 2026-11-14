@@ -298,7 +298,7 @@ function PcAccess({ lan }: { lan: boolean }) {
         <div className="cfg-row">
           <div className="cfg-row__text">
             <div className="cfg-row__title">Open to your Wi-Fi</div>
-            <div className="cfg-row__sub">{on ? 'On your PC, open http://<this phone’s Wi-Fi address>:8787 and sign in with the passphrase.' : 'Only this phone can open YakkBot.'}</div>
+            <div className="cfg-row__sub">{on ? 'On your PC, open http://<this phone’s Wi-Fi address>:8797 and sign in with the passphrase.' : 'Only this phone can open YakkBot.'}</div>
           </div>
           <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => { const next = !on; setOn(next); android?.setLan?.(next); }}>{on ? 'Turn off' : 'Turn on'}</button>
         </div>

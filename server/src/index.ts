@@ -31,7 +31,7 @@ initRooms();
 expireStaleApprovals();
 
 const app = new Hono();
-app.get('/api/health', (c) => c.json({ ok: true, app: 'yakkbot', engine: env.engine, computer: env.computerMode }));
+app.get('/api/health', (c) => c.json({ ok: true, app: 'yakkbot', platform: process.env.YAKK_PLATFORM ?? '', engine: env.engine, computer: env.computerMode }));
 // The app's tools for the agent engines (MCP).
 app.route('/mcp', mcpApi);
 app.route('/api/checkins', checkinsApi);
