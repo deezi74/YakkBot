@@ -16,6 +16,8 @@ function addColumn(table: string, col: string, ddl: string) {
 
 addColumn('skills', 'description', "TEXT NOT NULL DEFAULT ''");
 addColumn('skills', 'updated_at', 'INTEGER');
+// Where a skill came from: 'user' (written in settings), 'learned' (the bot) or 'library'.
+addColumn('skills', 'source', "TEXT NOT NULL DEFAULT 'user'");
 /** 'chat' = saved by the bot's remember tool, 'learned' = extracted by consolidation. */
 addColumn('memories', 'source', "TEXT NOT NULL DEFAULT 'chat'");
 

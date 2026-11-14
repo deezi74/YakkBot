@@ -7,6 +7,8 @@ import { requireUser, type AuthVars } from './lib/auth.js';
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { env, getAppSettings, setAppSettings } from './env.js';
+import { SKILL_LIBRARY, librarySkill } from './skillLibrary.js';
+import { saveSkill } from './skills.js';
 import { jobStatus, startJob, type JobId } from './setupJobs.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
 import { computerState, readyScreen, resetBotScreen } from './computer.js';
@@ -30,14 +32,14 @@ import type { LibraryFile, Skill } from './types.js';
  */
 export const configApi = new Hono<AuthVars>();
 
-for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*', '/setup/*', '/learning']) configApi.use(p, requireUser);
+for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*', '/setup/*', '/learning', '/skill-library']) configApi.use(p, requireUser);
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
   return b && b.user_id === userId ? b : null;
 };
 
-const toSkill = (s: any): Skill => ({ id: s.id, botId: s.bot_id, name: s.name, description: s.description ?? '', body: s.body, createdAt: s.created_at, updatedAt: s.updated_at ?? s.created_at });
+const toSkill = (s: any): Skill => ({ id: s.id, botId: s.bot_id, name: s.name, description: s.description ?? '', body: s.body, createdAt: s.created_at, updatedAt: s.updated_at ?? s.created_at, source: s.source ?? 'user' });
 const listSkills = (botId: string) => (db.prepare('SELECT * FROM skills WHERE bot_id=? ORDER BY created_at ASC').all(botId) as any[]).map(toSkill);
 
 // ---------- settings bundle ----------
@@ -486,6 +488,16 @@ configApi.post('/setup/:job', (c) => {
 // ---------- the bots' computer: chosen and set up in the app ----------
 // One Orgo cloud computer for the whole team, a screen of its own for each bot (Orgo allows 4),
 // or the desktop in the YakkBot app's own Linux.
+
+/** Ready-made skills, shown as cards in each bot's Skills tab. */
+configApi.get('/skill-library', (c) => c.json({ skills: SKILL_LIBRARY }));
+configApi.post('/bots/:id/skills/library/:skillId', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  const lib = librarySkill(c.req.param('skillId'));
+  if (!b || !lib) return c.json({ error: 'not found' }, 404);
+  saveSkill(c.get('user').id, b.id, { name: lib.name, description: lib.description, body: lib.body }, 'library');
+  return c.json({ ok: true });
+});
 
 /** Bots learning on their own after real work (Settings › AI models). */
 configApi.get('/learning', (c) => c.json({ autoLearn: getAppSettings().autoLearn !== false }));
