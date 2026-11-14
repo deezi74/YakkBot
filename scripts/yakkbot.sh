@@ -118,7 +118,8 @@ desktop() {
       else die "Install a VNC server, a desktop, xdotool and scrot with your package manager, then set VNC_PORT and VNC_PASSWORD in $ENV_FILE."; fi
       mkdir -p "$HOME/.vnc"
       printf '%s\n' "$pw" | vncpasswd -f > "$HOME/.vnc/passwd"; chmod 600 "$HOME/.vnc/passwd"
-      printf '#!/bin/sh\nexec startxfce4\n' > "$HOME/.vnc/xstartup"; chmod +x "$HOME/.vnc/xstartup"
+      # The desktop opens the bots' home page in the browser once YakkBot has written its address.
+      printf '#!/bin/sh\n(sleep 6; U=$(cat "$HOME/.yakkbot/desk.url" 2>/dev/null); for b in browser chromium-browser chromium firefox; do command -v $b >/dev/null && exec $b $U; done) &\nexec startxfce4\n' > "$HOME/.vnc/xstartup"; chmod +x "$HOME/.vnc/xstartup"
       setenv VNC_PORT 5901; setenv VNC_PASSWORD "$pw"; setenv YAKK_COMPUTER local
       say "Desktop set up. Start it with: yakkbot desktop start   (then: yakkbot restart)"
       ;;

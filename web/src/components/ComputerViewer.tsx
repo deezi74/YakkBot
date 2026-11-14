@@ -7,7 +7,7 @@ import { botVars } from '../lib/colors';
 import { computerStatusText, screenSize, screensFull } from '../lib/computer';
 import { configApi } from '../lib/configApi';
 import { activityStatus } from '../lib/phrases';
-import { useSelectedBot, useStore } from '../store';
+import { useFeatures, useSelectedBot, useStore } from '../store';
 import { Icon } from './Icon';
 
 export type ScreenMode = 'watch' | 'control';
@@ -36,6 +36,7 @@ interface ScreenProps {
  */
 export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paused = false, onExpand, onModeChange }: ScreenProps) {
   const computer = useStore((s) => s.computer);
+  const f = useFeatures();
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const rfbRef = useRef<RFBType | null>(null);
@@ -159,6 +160,7 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
   else if (conn === 'connected') phase = 'live';
   else phase = hadFrame.current ? 'switching' : 'waking';
 
+  const localDesk = f.computer === 'local';
   const takeControl = () => {
     if (variant === 'panel' && !fullscreen) onExpand?.('control');
     else setMode('control');
@@ -203,7 +205,7 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
   return (
     <div
       ref={frameRef}
-      className={`screen screen--${variant} is-${phase}${driving ? ' is-driving' : ''}${fullscreen ? ' is-fullscreen' : ''}`}
+      className={`screen screen--${variant} is-${phase}${driving ? ' is-driving' : ''}${fullscreen ? ' is-fullscreen' : ''}${localDesk && phase === 'live' && !driving ? ' has-dock' : ''}`}
       style={style}
     >
       <div className="screen__body">
@@ -306,12 +308,16 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
         </div>
 
         {!driving && (
-          <div className="screen__caption">
-            <BotAvatarFor bot={bot} size={18} />
-            <span className="screen__caption-name">{bot.name}</span>
-            <span className="screen__caption-dot" aria-hidden>·</span>
-            <span className={`screen__caption-doing${live?.isRunning ? ' is-busy' : ''}`}>{doing}</span>
-          </div>
+          <>
+            {localDesk && phase === 'live' && <Dock onNote={setNote} />}
+            <div className="screen__caption">
+              <BotAvatarFor bot={bot} size={18} />
+              <span className="screen__caption-name">{bot.name}</span>
+              <span className="screen__caption-dot" aria-hidden>{live?.isRunning ? 'has control ·' : '·'}</span>
+              <span className={`screen__caption-doing${live?.isRunning ? ' is-busy' : ''}`}>{doing}</span>
+              {phase === 'live' && <button type="button" className="screen__takeover" onClick={takeControl}>Take over</button>}
+            </div>
+          </>
         )}
 
         {driving && (
@@ -384,6 +390,49 @@ export function ComputerViewer() {
       </div>
       <div className="viewer__stage">
         <ComputerScreen key={bot.id} bot={bot} variant="stage" initialMode={initialMode} hint={hint} onModeChange={onModeChange} />
+      </div>
+    </div>
+  );
+}
+
+interface DeskAppInfo { id: string; name: string; icon: string; tint: string; installed: boolean; installing: boolean; available: boolean; about: string }
+
+/** The dock under the screen of the computer on this device: the everyday apps, and every other app a tap away. */
+function Dock({ onNote }: { onNote: (t: string | null) => void }) {
+  const [apps, setApps] = useState<DeskAppInfo[]>([]);
+  const [open, setOpen] = useState(false);
+  const load = useCallback(() => { fetch('/api/computer/apps', { credentials: 'include' }).then((r) => r.json()).then((d) => setApps(d.apps ?? [])).catch(() => {}); }, []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (!apps.some((a) => a.installing)) return; const t = setTimeout(load, 4000); return () => clearTimeout(t); }, [apps, load]);
+  const act = async (a: DeskAppInfo) => {
+    const r = await fetch(`/api/computer/apps/${a.id}/${a.installed ? 'open' : 'install'}`, { method: 'POST', credentials: 'include' }).then((x) => x.json()).catch(() => null);
+    onNote(r?.message ?? null);
+    setTimeout(() => onNote(null), 3500);
+    setOpen(false);
+    load();
+  };
+  const pinned = ['browser', 'terminal', 'files'].map((id) => apps.find((a) => a.id === id)).filter((a): a is DeskAppInfo => !!a && (a.installed || a.available));
+  return (
+    <div className="screen__dock-wrap">
+      {open && (
+        <div className="screen__apps" role="menu">
+          {apps.filter((a) => a.installed || a.available).map((a) => (
+            <button key={a.id} type="button" role="menuitem" className={`screen__app${a.installed ? '' : ' is-off'}${a.installing ? ' is-busy' : ''}`} onClick={() => act(a)} title={a.about}>
+              <span className="screen__app-icon" style={{ background: a.tint }}>{a.icon}</span>
+              <span className="screen__app-name">{a.name}{!a.installed && !a.installing ? ' · Get' : a.installing ? ' · …' : ''}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="screen__dock">
+        {pinned.map((a) => (
+          <button key={a.id} type="button" className={`screen__dock-btn${a.installed ? '' : ' is-off'}`} onClick={() => act(a)} title={a.installed ? `Open ${a.name}` : `Install ${a.name}`} aria-label={a.name}>
+            <span style={{ background: a.tint }}>{a.icon}</span>
+          </button>
+        ))}
+        <button type="button" className="screen__dock-btn" onClick={() => setOpen(!open)} title="All apps" aria-label="All apps" aria-expanded={open}>
+          <span style={{ background: '#FFFFFF' }}>▦</span>
+        </button>
       </div>
     </div>
   );

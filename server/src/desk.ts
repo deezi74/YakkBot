@@ -1,3 +1,4 @@
+import { SHAPES, type ShapeDef } from './avatarShapes.js';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
@@ -150,7 +151,7 @@ const COLOR_HEX: Record<string, string> = {
   cyan: '#13B7A2', blue: '#1E86FC', violet: '#8F59F9', magenta: '#F93498', gray: '#959595',
 };
 
-function colorHex(color: string): string {
+export function colorHex(color: string): string {
   const c = (color ?? '').trim();
   if (/^#[0-9a-f]{6}$/i.test(c)) return c.toUpperCase();
   if (/^#[0-9a-f]{3}$/i.test(c)) return `#${[...c.slice(1)].map((x) => x + x).join('')}`.toUpperCase();
@@ -179,7 +180,7 @@ function hslHex(h: number, s: number, l: number): string {
 interface Palette { accent: string; ink: string; wash: string; washDeep: string; washLight: string; glow: string; glow2: string; line: string }
 
 /** Soft tints of the bot's colour. Black and gray get a calm blue-gray instead of a muddy wash. */
-function paletteFor(avatarHex: string): Palette {
+export function paletteFor(avatarHex: string): Palette {
   const [h, s] = hslOf(avatarHex);
   const base = s < 0.15 ? '#7A869A' : avatarHex;
   const hue = s < 0.15 ? 218 : h;
@@ -238,7 +239,7 @@ function rng(seed: string): () => number {
 }
 
 /** The wallpaper as an SVG that fills whatever size it is given (__W__ and __H__ are filled in on the computer). */
-function wallpaperSvg(p: Palette, seed: string): string {
+export function wallpaperSvg(p: Palette, seed: string): string {
   const rand = rng(seed);
   const order = DOODLES.map((d, i) => ({ d, k: rand(), i })).sort((a, b) => a.k - b.k);
   const doodles = SLOTS.map(([x, y], i) => {
@@ -267,30 +268,15 @@ function wallpaperSvg(p: Palette, seed: string): string {
 
 // ---------------------------------------------------------------- avatar
 
-interface ShapeDef { viewBox: string; d: string; outline: string }
 /** Older shape names the web app also maps onto the drawn set. */
 const SHAPE_FALLBACK: Record<string, string> = {
   bean: 'teardrop', squircle: 'square', capsule: 'tablet', cylinder: 'tablet', gem: 'hex', crystal: 'hex',
   shield: 'house', dome: 'house', arch: 'house', leaf: 'teardrop',
 };
-let shapesCache: Record<string, ShapeDef> | null = null;
+/** The same silhouettes the app draws (shared with the web app). */
+function shapes(): Record<string, ShapeDef> { return SHAPES; }
 
-/** The avatar art lives in the web app; read it as text so the server needs no build step for it. */
-function shapes(): Record<string, ShapeDef> {
-  if (shapesCache) return shapesCache;
-  shapesCache = {};
-  try {
-    const text = fs.readFileSync(new URL('../../web/src/avatar/shapes.gen.ts', import.meta.url), 'utf8');
-    const start = text.indexOf('{', text.indexOf('SHAPES'));
-    const end = text.lastIndexOf('}');
-    if (start > 0 && end > start) shapesCache = JSON.parse(text.slice(start, end + 1)) as Record<string, ShapeDef>;
-  } catch {
-    warn('avatar shapes not found, using a plain circle');
-  }
-  return shapesCache;
-}
-
-function avatarSvg(shape: string, fill: string): string {
+export function avatarSvg(shape: string, fill: string): string {
   const all = shapes();
   const def = all[shape] ?? all[SHAPE_FALLBACK[shape] ?? 'blob'] ?? all.blob;
   const safe = (s: string) => /^[\w\s.,\-+]*$/.test(s);
