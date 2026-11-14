@@ -71,7 +71,8 @@ interface AppSettings { computer?: 'none' | 'local' | 'orgo'; orgoKey?: string; 
   tts?: string; ttsVoice?: string; ttsUrl?: string; stt?: string; voiceMode?: 'talk' | 'realtime';
   autostartVoice?: boolean; autostartFreellmapi?: boolean;
   /** Bots look back after real work and keep memories and skills (default on). */
-  autoLearn?: boolean }
+  autoLearn?: boolean;
+  composioKey?: string }
 const settingsFile = path.join(dataDir, 'settings.json');
 let appSettings: AppSettings = {};
 try { appSettings = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch { /* none yet */ }
@@ -163,7 +164,8 @@ export const env = {
   primaryCdpUrl: str('PRIMARY_CDP_URL'),
 
   // ---- add-ons ----
-  composioKey: secret('COMPOSIO_API_KEY'),
+  /** From the server's settings, or pasted in the app (Settings › Accounts). */
+  get composioKey() { return secret('COMPOSIO_API_KEY') || appSettings.composioKey || ''; },
   /** From the server's settings, or a Grok key added in the app (Settings › AI models). */
   get xaiKey() { return secret('XAI_API_KEY') || keyLookup('xai'); },
   xaiModel: str('XAI_MODEL', 'grok-4.7'),

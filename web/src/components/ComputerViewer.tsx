@@ -163,8 +163,24 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
     if (variant === 'panel' && !fullscreen) onExpand?.('control');
     else setMode('control');
   };
-  const retry = () => {
+  const [restarting, setRestarting] = useState(false);
+  const [desktopLog, setDesktopLog] = useState('');
+  // In the phone app the computer runs on the phone: when its screen does not answer, restart it there.
+  const appDesktop = typeof window !== 'undefined' && !!(window as unknown as { YakkAndroid?: unknown }).YakkAndroid;
+  useEffect(() => {
+    if (!appDesktop || phase !== 'error') return;
+    fetch('/api/desktop', { credentials: 'include' }).then((r) => r.json()).then((d) => setDesktopLog(d?.running === false ? String(d.log ?? '').trim().split('\n').slice(-4).join('\n') : '')).catch(() => {});
+  }, [appDesktop, phase]);
+  const retry = async () => {
     setWakeError(null);
+    if (appDesktop) {
+      setRestarting(true);
+      await fetch('/api/desktop/restart', { method: 'POST', credentials: 'include' }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 8000));
+      setRestarting(false);
+      setAttempt((n) => n + 1);
+      return;
+    }
     if (running) setAttempt((n) => n + 1);
     else wake();
   };
@@ -254,8 +270,9 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
                 {!running ? `Couldn’t wake ${bot.name}’s computer` : conn === 'disconnected' ? 'The screen disconnected' : `Couldn’t reach ${bot.name}’s screen`}
               </span>
               {(wakeError || (status === 'error' && computer?.error)) && <span className="screen__sub">{wakeError ?? computer?.error}</span>}
+              {desktopLog && <pre className="screen__log">{desktopLog}</pre>}
               {running && screensFull(computer, bot.id) && <span className="screen__sub">All {computer?.maxScreens} screens are in use. Reset one in Settings to free it.</span>}
-              <button type="button" className="screen__action" onClick={retry}>Retry</button>
+              <button type="button" className="screen__action" onClick={retry} disabled={restarting}>{restarting ? 'Restarting the computer…' : appDesktop ? 'Restart computer' : 'Retry'}</button>
             </div>
           )}
 

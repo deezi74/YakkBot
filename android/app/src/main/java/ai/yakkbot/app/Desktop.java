@@ -31,7 +31,13 @@ final class Desktop {
     static JSONObject status(Context c) {
         try {
             String s = state != null ? state : installed(c) ? "ready" : "none";
-            return new JSONObject().put("state", s);
+            JSONObject o = new JSONObject().put("state", s);
+            if ("ready".equals(s)) {
+                boolean up = running();
+                o.put("running", up);
+                if (!up) o.put("log", logTail(c));
+            }
+            return o;
         } catch (Exception e) { return new JSONObject(); }
     }
 
@@ -76,9 +82,26 @@ final class Desktop {
 
     /** The command that runs the desktop: the VNC server, then the XFCE session on it. */
     static String script() {
-        return "rm -f /tmp/.X1-lock /tmp/.X11-unix/X1; mkdir -p /tmp/.X11-unix; "
-                + "Xvnc " + DISPLAY + " -geometry 1280x800 -depth 24 -rfbport " + VNC_PORT + " -localhost -SecurityTypes VncAuth -PasswordFile /root/.vnc/passwd -AlwaysShared -nolisten tcp & "
-                + "sleep 2; export DISPLAY=" + DISPLAY + "; exec dbus-launch --exit-with-session startxfce4";
+        // The screen (Xvnc) runs in front and keeps the computer up; the desktop session runs beside
+        // it and is started again if it ever exits, so a crash in a panel never takes the screen down.
+        return "rm -f /tmp/.X1-lock /tmp/.X11-unix/X1; mkdir -p /tmp/.X11-unix /tmp/runtime-root /var/lib/dbus; chmod 1777 /tmp/.X11-unix; chmod 700 /tmp/runtime-root; "
+                // D-Bus refuses to start without a machine id, and the app's Linux has none.
+                + "[ -s /etc/machine-id ] || dbus-uuidgen > /etc/machine-id; [ -e /var/lib/dbus/machine-id ] || ln -sf /etc/machine-id /var/lib/dbus/machine-id; "
+                + "export HOME=/root USER=root XDG_RUNTIME_DIR=/tmp/runtime-root DISPLAY=" + DISPLAY + " NO_AT_BRIDGE=1; "
+                + "( for i in $(seq 1 30); do [ -e /tmp/.X11-unix/X1 ] && break; sleep 1; done; "
+                + "while true; do echo \"[desktop] starting the session\"; dbus-launch --exit-with-session sh -c 'xfwm4 --replace & xfdesktop & exec xfce4-panel'; echo \"[desktop] session ended, starting it again\"; sleep 3; done ) & "
+                + "exec Xvnc " + DISPLAY + " -geometry 1280x800 -depth 24 -rfbport " + VNC_PORT + " -localhost -SecurityTypes VncAuth -PasswordFile /root/.vnc/passwd -AlwaysShared -nolisten tcp";
+    }
+
+    /** Whether the computer's screen answers right now. */
+    static boolean running() {
+        try (java.net.Socket s = new java.net.Socket()) { s.connect(new java.net.InetSocketAddress("127.0.0.1", VNC_PORT), 400); return true; }
+        catch (Exception e) { return false; }
+    }
+
+    static String logTail(Context c) {
+        try { return Linux.tail(new String(java.nio.file.Files.readAllBytes(new File(new Linux(c).base, "desktop.log").toPath()), java.nio.charset.StandardCharsets.UTF_8), 1500); }
+        catch (Exception e) { return ""; }
     }
 
     static void addServerEnv(Context c, Map<String, String> env) throws java.io.IOException {

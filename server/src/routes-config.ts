@@ -7,6 +7,8 @@ import { requireUser, type AuthVars } from './lib/auth.js';
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { env, getAppSettings, setAppSettings } from './env.js';
+import { EMAIL_PRESETS, addEmail, addGithub, listAccounts, removeAccount } from './accounts.js';
+import { resetComposio } from './composio.js';
 import { SKILL_LIBRARY, librarySkill } from './skillLibrary.js';
 import { saveSkill } from './skills.js';
 import { jobStatus, startJob, type JobId } from './setupJobs.js';
@@ -32,7 +34,7 @@ import type { LibraryFile, Skill } from './types.js';
  */
 export const configApi = new Hono<AuthVars>();
 
-for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*', '/setup/*', '/learning', '/skill-library']) configApi.use(p, requireUser);
+for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*', '/setup/*', '/learning', '/skill-library', '/accounts', '/accounts/*']) configApi.use(p, requireUser);
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
@@ -471,6 +473,7 @@ configApi.post('/phone-models/:action', async (c) => {
 
 configApi.get('/desktop', (c) => viaApp(c, '/desktop/status'));
 configApi.post('/desktop/install', (c) => viaApp(c, '/desktop/install'));
+configApi.post('/desktop/restart', (c) => viaApp(c, '/desktop/restart'));
 
 // One-tap setup for YakkBot in Termux or on Linux (the app does its own through the bridge).
 const JOB_IDS = new Set(['engine', 'desktop', 'voice', 'freellmapi']);
@@ -488,6 +491,28 @@ configApi.post('/setup/:job', (c) => {
 // ---------- the bots' computer: chosen and set up in the app ----------
 // One Orgo cloud computer for the whole team, a screen of its own for each bot (Orgo allows 4),
 // or the desktop in the YakkBot app's own Linux.
+
+// ---------- the owner's accounts (Settings › Accounts) ----------
+configApi.get('/accounts', (c) => c.json({
+  accounts: listAccounts(),
+  emailPresets: Object.entries(EMAIL_PRESETS).map(([id, p]) => ({ id, name: p.name, help: p.help })),
+  composio: { connected: !!env.composioKey, fromServer: !!process.env.COMPOSIO_API_KEY },
+}));
+configApi.post('/accounts/email', async (c) => {
+  const p = await c.req.json<any>().catch(() => ({}));
+  try { await addEmail(p); return c.json({ accounts: listAccounts() }); } catch (e: any) { return c.json({ error: e.message }, 400); }
+});
+configApi.post('/accounts/github', async (c) => {
+  const p = await c.req.json<{ token?: string }>().catch(() => ({} as any));
+  try { const login = await addGithub(String(p.token ?? '')); return c.json({ login, accounts: listAccounts() }); } catch (e: any) { return c.json({ error: e.message }, 400); }
+});
+configApi.put('/accounts/composio', async (c) => {
+  const p = await c.req.json<{ key?: string }>().catch(() => ({} as any));
+  setAppSettings({ composioKey: String(p.key ?? '').trim() || undefined });
+  resetComposio();
+  return c.json({ connected: !!env.composioKey });
+});
+configApi.delete('/accounts/:id', (c) => { removeAccount(c.req.param('id')); return c.json({ accounts: listAccounts() }); });
 
 /** Ready-made skills, shown as cards in each bot's Skills tab. */
 configApi.get('/skill-library', (c) => c.json({ skills: SKILL_LIBRARY }));

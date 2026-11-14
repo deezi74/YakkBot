@@ -1,3 +1,4 @@
+import { emailTool, githubTool, hasEmail, hasGithub } from '../accounts.js';
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -575,8 +576,41 @@ export const deviceBridgeAvailable = () => bridgeUsable();
 export const phoneAvailable = () => (env.isTermux && have('termux-battery-status')) || bridgePhone();
 export const screenAvailable = () => env.computerMode === 'orgo' || (hasLocalDesktop() && have('xdotool'));
 
+const EMAIL: DeviceTool = {
+  name: 'email',
+  description: "The owner's own email inbox (connected in Settings › Accounts). Actions: accounts; folders; list (folder default INBOX, limit, unread_only, from, subject, text, since/before YYYY-MM-DD) shows uid, date, sender, subject; read (uid); mark (uids, read true/false, flagged); move (uids, to: folder name, created if missing); archive (uids); delete (uids: moves them to Trash, restorable); send (to, subject, text, cc, in_reply_to). Pass account (an address) when more than one is connected. To clean up, list in batches, decide, then act on many uids at once and report what you did.",
+  parameters: obj({
+    action: { type: 'string', enum: ['accounts', 'folders', 'list', 'read', 'mark', 'move', 'archive', 'delete', 'send'] },
+    account: { type: 'string' }, folder: { type: 'string' }, limit: { type: 'number' }, unread_only: { type: 'boolean' },
+    from: { type: 'string' }, subject: { type: 'string' }, text: { type: 'string' }, since: { type: 'string' }, before: { type: 'string' },
+    uid: { type: 'number' }, uids: { type: 'array', items: { type: 'number' } }, to: { type: 'string' }, cc: { type: 'string' },
+    read: { type: 'boolean' }, flagged: { type: 'boolean' }, in_reply_to: { type: 'string' },
+  }, ['action']),
+  activity: 'connecting_service',
+  label: 'Working in your email',
+  gate: (a) => a?.action === 'delete' ? { key: 'EMAIL_DELETE', title: `Email: move ${Array.isArray(a.uids) ? a.uids.length : 'some'} message(s) to Trash` }
+    : a?.action === 'send' ? { key: 'EMAIL_SEND', title: `Email: send "${String(a.subject ?? '').slice(0, 60)}" to ${a.to ?? ''}` } : null,
+  impl: async (a) => { try { return await emailTool(a); } catch (e: any) { return { output: String(e?.message ?? e), isError: true }; } },
+};
+
+const GITHUB: DeviceTool = {
+  name: 'github',
+  description: "The owner's GitHub account (connected in Settings › Accounts), for building apps and web pages. Actions: whoami; list_repos; create_repo (name, description, private); list_files (repo, path); read_file (repo, path); write_files (repo, files: [{path, content}], message, branch) creates or updates many files in one go; delete_file (repo, path); publish_site (repo) turns the repository into a live website with GitHub Pages and returns its address; create_issue (repo, title, body). repo is \"name\" (yours) or \"owner/name\". For a website: create_repo, write_files with index.html, style.css and script.js, then publish_site and give the owner the link.",
+  parameters: obj({
+    action: { type: 'string', enum: ['whoami', 'list_repos', 'create_repo', 'list_files', 'read_file', 'write_files', 'delete_file', 'publish_site', 'create_issue'] },
+    repo: { type: 'string' }, name: { type: 'string' }, description: { type: 'string' }, private: { type: 'boolean' },
+    path: { type: 'string' }, content: { type: 'string' }, branch: { type: 'string' }, message: { type: 'string' },
+    files: { type: 'array', items: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } },
+    title: { type: 'string' }, body: { type: 'string' },
+  }, ['action']),
+  activity: 'connecting_service',
+  label: 'Working on GitHub',
+  gate: (a) => a?.action === 'delete_file' ? { key: 'GITHUB_DELETE', title: `GitHub: delete ${a.path ?? 'a file'} from ${a.repo ?? ''}` } : null,
+  impl: async (a) => { try { return await githubTool(a); } catch (e: any) { return { output: String(e?.message ?? e), isError: true }; } },
+};
+
 export function deviceTools(): DeviceTool[] {
-  return [...BASE, ...(phoneAvailable() ? [PHONE] : []), ...(deviceBridgeAvailable() ? [DEVICE] : []), ...(screenAvailable() ? [SCREEN] : [])];
+  return [...BASE, ...(hasEmail() ? [EMAIL] : []), ...(hasGithub() ? [GITHUB] : []), ...(phoneAvailable() ? [PHONE] : []), ...(deviceBridgeAvailable() ? [DEVICE] : []), ...(screenAvailable() ? [SCREEN] : [])];
 }
 
 /** Every device tool there is, for labels and activity lines (whether or not this device offers it). */

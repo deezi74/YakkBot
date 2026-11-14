@@ -38,6 +38,20 @@ const fakeSpeech = http.createServer((req, res) => {
   req.on('end', () => { speechCalls.push({ path: req.url, body: JSON.parse(raw || '{}') }); res.writeHead(200, { 'content-type': 'audio/mpeg' }); res.end(Buffer.from('ID3fakeaudio')); });
 });
 fakeSpeech.listen(18882, '127.0.0.1');
+// Stands in for GitHub's API.
+const ghCalls = [];
+const fakeGithub = http.createServer((req, res) => {
+  let raw = '';
+  req.on('data', (c) => (raw += c));
+  req.on('end', () => {
+    ghCalls.push({ method: req.method, path: req.url });
+    const send = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
+    if (req.headers.authorization !== 'Bearer ghp_test') return send(401, { message: 'Bad credentials' });
+    if (req.url === '/user') return send(200, { login: 'tester' });
+    return send(404, { message: 'Not Found' });
+  });
+});
+fakeGithub.listen(18883, '127.0.0.1');
 const base = `http://127.0.0.1:${PORT}`;
 const procs = [];
 const start = (args, env) => {
@@ -47,7 +61,7 @@ const start = (args, env) => {
   procs.push(p);
   return p;
 };
-const cleanup = () => { fakeBridge.close(); fakeSpeech.close(); for (const p of procs) p.kill(); fs.rmSync(home, { recursive: true, force: true }); };
+const cleanup = () => { fakeBridge.close(); fakeSpeech.close(); fakeGithub.close(); for (const p of procs) p.kill(); fs.rmSync(home, { recursive: true, force: true }); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let cookie = '';
@@ -76,7 +90,7 @@ const lastAssistant = (rs) => rs.filter((r) => r.kind === 'message' && r.body.ro
 
 async function run(wire) {
   console.log(`\n== ${wire} wire ==`);
-  const env = { YAKK_HOME: path.join(home, wire), PORT: String(PORT), YAKK_PASSWORD: 'correct horse', NODE_NO_WARNINGS: '1', LLAMA_SERVER: path.join(root, 'tests/fake-llama-server.mjs'), YAKK_MODEL_PORT: '18881' };
+  const env = { YAKK_HOME: path.join(home, wire), PORT: String(PORT), YAKK_PASSWORD: 'correct horse', NODE_NO_WARNINGS: '1', LLAMA_SERVER: path.join(root, 'tests/fake-llama-server.mjs'), YAKK_MODEL_PORT: '18881', YAKK_GITHUB_API: 'http://127.0.0.1:18883' };
   fs.mkdirSync(path.join(home, wire, 'models'), { recursive: true });
   fs.writeFileSync(path.join(home, wire, 'models', 'tiny.gguf'), 'GGUF');
   if (wire === 'openai') Object.assign(env, { CUSTOM_BASE_URL: `http://127.0.0.1:${MOCK}/v1`, CUSTOM_MODEL: 'mock-1' });
@@ -271,6 +285,15 @@ async function run(wire) {
   const fl = (await api('GET', '/providers')).json.providers.find((p) => p.id === 'freellmapi');
   check('FreeLLMAPI is offered as a provider', !!fl && fl.models.includes('auto') && fl.baseUrl === 'http://127.0.0.1:3001/v1', JSON.stringify(fl));
   check('FreeLLMAPI can be set up from the app', (await api('GET', '/setup/freellmapi')).json.available === true);
+
+  // Accounts: GitHub with a token (checked against GitHub first), email needs a real address and app password.
+  check('a wrong GitHub token is refused', (await api('POST', '/accounts/github', { token: 'nope' })).status === 400);
+  const ghAdd = (await api('POST', '/accounts/github', { token: 'ghp_test' })).json;
+  check('GitHub connects with a token', ghAdd.login === 'tester' && ghAdd.accounts?.some((x) => x.kind === 'github' && x.label === 'github.com/tester'), JSON.stringify(ghAdd));
+  check('an email without an address is refused', (await api('POST', '/accounts/email', { preset: 'gmail', address: 'nope', password: 'x' })).status === 400);
+  const acc = (await api('GET', '/accounts')).json;
+  check('accounts lists email providers and app connections', acc.emailPresets?.some((p) => p.id === 'gmail') && typeof acc.composio?.connected === 'boolean', JSON.stringify(acc).slice(0, 200));
+  await api('DELETE', `/accounts/${ghAdd.accounts.find((x) => x.kind === 'github').id}`);
 
   const setup = (await api('GET', '/computer/setup')).json;
   check('the computer page reports where bots work', ['none', 'local', 'orgo'].includes(setup.mode) && setup.maxBots > 0, JSON.stringify(setup));

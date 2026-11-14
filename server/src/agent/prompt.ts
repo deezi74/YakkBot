@@ -2,6 +2,7 @@ import { db } from '../db.js';
 import { env } from '../env.js';
 import { getBotRow, listConnections, listRoutines } from '../store.js';
 import { skillsBlock } from '../skills.js';
+import { hasEmail, hasGithub } from '../accounts.js';
 import { connectedToolkits } from '../composio.js';
 import { deviceBridgeAvailable, phoneAvailable, screenAvailable, workspace } from '../native/tools.js';
 import { LIBRARY_ROOT } from './tools.js';
@@ -67,6 +68,8 @@ export async function instructionsFor(userId: string, botId: string): Promise<st
     ];
     if (phoneAvailable()) lines.push(`- phone uses the handset itself: notifications, the clipboard, location, texts, calls, contacts, calendar, alarms and timers, speaking aloud. A notification is the right way to reach ${owner} when they are not looking at the app.`);
     if (deviceBridgeAvailable()) lines.push(`- device operates the phone's own screen in any app: read what is on it, tap, swipe, type, open apps, read notifications. Use it when there is no better way (a shell command, a connected app or the phone tool is faster and more reliable). ${owner} can see everything you do on the screen.`);
+    if (hasEmail()) lines.push(`- email works in ${owner}'s own inbox: list, read, organize into folders, archive, mark, delete (to Trash) and send. When asked to clean up, work in batches, keep anything that looks personal or important, and report what you moved or deleted.`);
+    if (hasGithub()) lines.push(`- github works in ${owner}'s GitHub account: create repositories, write files, and publish_site to put a website live. When you build a page, make it complete and good-looking, publish it, and share the link.`);
     if (env.computerMode === 'orgo') lines.push(`- screen is your own screen on the team's cloud computer: a Linux desktop with your own Chrome. ${owner} can watch it live in the app and take over. Open sites with open_url, read them with screenshot, and use shell to run commands on that computer. Other bots have screens of their own on it; stay on yours.`);
     else if (screenAvailable()) lines.push(`- screen shows you your desktop computer and lets you click and type on it. ${owner} can watch it live in the app and take over the mouse and keyboard.${env.inApp ? ' Your web browser is Chromium: open a page by running `browser <url>` with the terminal tool and background set to true (it opens on your screen), then use screen to read and work in it.' : ''}`);
     else if (!deviceBridgeAvailable()) lines.push('- There is no desktop to look at, so work through the shell, files and the web rather than a browser window.');
