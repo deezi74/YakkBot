@@ -29,6 +29,7 @@ public class BridgeService extends Service {
     private Thread server;
     private volatile boolean running = true;
     private volatile Process process, desktop;
+    private static volatile BridgeService instance;
     private PowerManager.WakeLock wake;
 
     static void start(Context c) {
@@ -67,6 +68,8 @@ public class BridgeService extends Service {
         new Thread(bridge, "yakk-bridge").start();
         server = new Thread(this::superviseServer, "yakk-server");
         server.start();
+        instance = this;
+        watchDesktop(new Linux(this));
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -130,18 +133,47 @@ public class BridgeService extends Service {
     }
 
     /** The bots' desktop (when installed): started once, and again if it stopped. */
-    private void startDesktop(Linux linux) {
+    private synchronized void startDesktop(Linux linux) {
         if (!Desktop.installed(this)) return;
         Process d = desktop;
         if (d != null && d.isAlive()) return;
         try {
+            java.io.File log = new java.io.File(linux.base, "desktop.log");
+            if (log.length() > 512 * 1024) log.delete();
             ProcessBuilder pb = linux.command(Desktop.script(), null);
-            pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new java.io.File(linux.base, "desktop.log")));
+            // Both outputs go to the log. An unread error pipe fills up and freezes the desktop.
+            pb.redirectErrorStream(true);
+            pb.redirectOutput(ProcessBuilder.Redirect.appendTo(log));
             desktop = pb.start();
             Thread.sleep(3000);
         } catch (Exception e) {
             lastError = "The desktop did not start: " + e.getMessage();
         }
+    }
+
+    /** Keeps the desktop up: started again a few seconds after it stops, until the service ends. */
+    private void watchDesktop(Linux linux) {
+        Thread t = new Thread(() -> {
+            long pause = 3000;
+            while (running) {
+                sleep(pause);
+                if (!running || !Desktop.installed(this)) continue;
+                Process d = desktop;
+                if (d != null && d.isAlive()) { pause = 3000; continue; }
+                startDesktop(linux);
+                pause = Math.min(pause * 2, 60_000);
+            }
+        }, "yakk-desktop-watch");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Stops the desktop; the watcher starts it again fresh. */
+    static void restartDesktop() {
+        BridgeService s = instance;
+        if (s == null) return;
+        Process d = s.desktop;
+        if (d != null) d.destroy();
     }
 
     private static void sleep(long ms) { try { Thread.sleep(ms); } catch (InterruptedException ignored) {} }

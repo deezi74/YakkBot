@@ -117,12 +117,20 @@ final class Linux {
         Result(int code, String output) { this.code = code; this.output = output; }
     }
 
+    private File shm() {
+        File d = new File(base, "shm");
+        if (!d.isDirectory()) d.mkdirs();
+        return d;
+    }
+
     ProcessBuilder command(String script, Map<String, String> extraEnv) {
         ProcessBuilder pb = new ProcessBuilder(
                 proot.getAbsolutePath(), "--kill-on-exit", "--link2symlink", "-0",
                 "-r", rootfs.getAbsolutePath(),
                 "-b", "/dev", "-b", "/proc", "-b", "/sys",
                 "-b", tmp.getAbsolutePath() + ":/tmp",
+                // Android has no /dev/shm; X programs and Chromium need one.
+                "-b", shm().getAbsolutePath() + ":/dev/shm",
                 "-w", "/root",
                 "/bin/sh", "-c", ". /etc/profile >/dev/null 2>&1; " + script);
         Map<String, String> env = pb.environment();

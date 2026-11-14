@@ -23,7 +23,7 @@ const PALETTE_VARS: Record<string, keyof (typeof PALETTES)['ocean']> = {
   '--color-bg-active-solid': 'elevated', '--color-bubble-user': 'bubble', '--color-border-focus': 'accent',
 };
 export type BotSettingsTab = 'general' | 'skills' | 'memories' | 'connections' | 'routines';
-export type AppSection = 'general' | 'ai' | 'voice' | 'phone' | 'models' | 'computer' | 'permissions' | 'apps' | 'account';
+export type AppSection = 'general' | 'ai' | 'voice' | 'accounts' | 'phone' | 'models' | 'computer' | 'permissions' | 'apps' | 'account';
 
 interface ConfigUI {
   botSettings: { botId: string; tab: BotSettingsTab } | null;

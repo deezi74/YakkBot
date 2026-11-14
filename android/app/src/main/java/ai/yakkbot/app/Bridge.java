@@ -192,6 +192,7 @@ final class Bridge implements Runnable {
             // ---- the desktop computer in the app's Linux ----
             case "/desktop/status": return Desktop.status(ctx);
             case "/desktop/install": Desktop.installAsync(ctx); return ok;
+            case "/desktop/restart": BridgeService.restartDesktop(); return ok;
 
             case "/ui/dump":
                 return screen().dump(Math.min(a.optInt("max", 250), 600));

@@ -249,3 +249,4 @@
 .skill-card__add { align-self: flex-start; }
 .skill-source { margin-top: 2px; font-size: 11px; color: var(--color-text-secondary); }
 .skill-source.is-learned { color: #0E9F6E; font-weight: 600; }
+.acct-icon { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }

@@ -13,6 +13,7 @@ import { Glyph } from './glyphs';
 import { PhoneModels } from './PhoneModels';
 import { AiModels } from './AiModels';
 import { VoicePage } from './VoicePage';
+import { AccountsPage } from './AccountsPage';
 import { android, androidInfo, pairAndroid, type AndroidInfo } from '../../lib/android';
 import { ConfirmButton } from './ui';
 import { ComputerSetupCard } from './ComputerSetup';
@@ -21,6 +22,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'general', label: 'General' },
   { id: 'ai', label: 'AI models' },
   { id: 'voice', label: 'Voice' },
+  { id: 'accounts', label: 'Accounts' },
   { id: 'phone', label: 'Phone control' },
   { id: 'models', label: 'On-device models' },
   { id: 'computer', label: 'Computer' },
@@ -61,6 +63,7 @@ export function AppSettings() {
           {section === 'models' && <PhoneModels />}
           {section === 'ai' && <AiModels />}
           {section === 'voice' && <VoicePage />}
+          {section === 'accounts' && <AccountsPage />}
           {section === 'computer' && <ComputerSection />}
           {section === 'permissions' && <PermissionsSection />}
           {section === 'apps' && <AppsSection />}

@@ -6,6 +6,8 @@ import type { Toolkit } from './types.js';
 
 /** Connected apps are an add-on: without COMPOSIO_API_KEY the catalog is empty and nothing is connected. */
 export const appsEnabled = () => !!env.composioKey;
+/** A new key was saved: the next call builds a fresh client. */
+export const resetComposio = () => { client = null as any; };
 
 let client: any = null;
 function composioClient(): any {
