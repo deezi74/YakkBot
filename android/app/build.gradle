@@ -14,8 +14,8 @@ android {
         applicationId 'ai.yakkbot.app'
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName '0.3.0'
+        versionCode 5
+        versionName '0.5.0'
         // The built-in Linux (PRoot + Alpine) is 64-bit ARM.
         ndk { abiFilters 'arm64-v8a' }
     }

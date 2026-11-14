@@ -471,7 +471,7 @@ configApi.get('/desktop', (c) => viaApp(c, '/desktop/status'));
 configApi.post('/desktop/install', (c) => viaApp(c, '/desktop/install'));
 
 // One-tap setup for YakkBot in Termux or on Linux (the app does its own through the bridge).
-const JOB_IDS = new Set(['engine', 'desktop']);
+const JOB_IDS = new Set(['engine', 'desktop', 'voice', 'freellmapi']);
 configApi.get('/setup/:job', (c) => {
   const id = c.req.param('job');
   if (!JOB_IDS.has(id)) return c.json({ error: 'not found' }, 404);

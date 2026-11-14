@@ -1,3 +1,4 @@
+export type SetupJobId = 'engine' | 'desktop' | 'voice' | 'freellmapi';
 import type { Bot, ComputerState, EngineInfo, EngineProvider, LibraryFile, Memory, Routine, Skill, Task, Toolkit } from '@shared/types';
 import { ApiError } from './api';
 
@@ -72,8 +73,8 @@ export const configApi = {
   downloadFile: (botId: string, path: string) => req<{ url: string }>('POST', `/bots/${botId}/files/download`, { path }),
 
   computerDetails: () => req<ComputerDetails>('GET', '/computer/details'),
-  setupJob: (job: 'engine' | 'desktop') => req<SetupJob>('GET', `/setup/${job}`),
-  startSetupJob: (job: 'engine' | 'desktop') => req<SetupJob>('POST', `/setup/${job}`),
+  setupJob: (job: SetupJobId) => req<SetupJob>('GET', `/setup/${job}`),
+  startSetupJob: (job: SetupJobId) => req<SetupJob>('POST', `/setup/${job}`),
   connections: (botId: string) => req<{ connections: Connection[] }>('GET', `/bots/${botId}/connections`).then((r) => r.connections),
   addConnection: (botId: string, c: { kind: 'bot' | 'person'; otherBotId?: string; name?: string; relation?: string; note?: string }) => req<{ connections: Connection[] }>('POST', `/bots/${botId}/connections`, c).then((r) => r.connections),
   removeConnection: (botId: string, id: string) => req<{ connections: Connection[] }>('DELETE', `/bots/${botId}/connections/${id}`).then((r) => r.connections),

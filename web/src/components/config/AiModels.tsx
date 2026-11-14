@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { EngineProvider } from '@shared/types';
 import { configApi } from '../../lib/configApi';
 import { useConfigUI } from '../../configStore';
+import { SetupJobButton } from './SetupJob';
 
 /**
  * Every way a bot can think, in one place: models on this device (GGUF, free and offline) and API
@@ -86,6 +87,22 @@ export function AiModels() {
               <button type="button" className="cfg-btn cfg-btn--primary" onClick={openModels}>{p.connected ? 'Manage' : 'Download'}</button>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="cfg-section">
+        <div className="cfg-section__label">FreeLLMAPI (free, many models)</div>
+        <div className="cfg-card">
+          <div className="cfg-row cfg-row--stack">
+            <div className="cfg-row__text">
+              <div className="cfg-row__title">One free endpoint over many free AI tiers</div>
+              <div className="cfg-row__sub">
+                Installs FreeLLMAPI on this device (the same one D-Agent starts in Termux, port 3001). Then open its dashboard at{' '}
+                <a href="http://127.0.0.1:3001" target="_blank" rel="noreferrer">127.0.0.1:3001</a>, add the free provider keys you have, copy its <code>freellmapi-…</code> key and paste it under FreeLLMAPI below. Use model <code>auto</code> to let it pick.
+              </div>
+            </div>
+            <SetupJobButton job="freellmapi" label="Set up FreeLLMAPI here" onDone={load} />
+          </div>
         </div>
       </section>
 

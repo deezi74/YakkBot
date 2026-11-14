@@ -18,6 +18,7 @@ import { runRoutine, scheduleRoutine, unscheduleRoutine } from './routines.js';
 import { deleteEventTrigger } from './triggers.js';
 import { dispatchRoomMessage } from './agent/rooms.js';
 import { voiceApi } from './voice.js';
+import { speechApi } from './speech.js';
 import type { AvatarColor, AvatarShape, Toolkit } from './types.js';
 
 export const api = new Hono<AuthVars>();
@@ -598,3 +599,4 @@ api.delete('/policies/:tool', (c) => {
 });
 
 api.route('/voice', voiceApi);
+api.route('/speech', speechApi);

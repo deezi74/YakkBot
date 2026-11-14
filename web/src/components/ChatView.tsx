@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { Menu } from './Menu';
 import { Transcript } from './Transcript';
 import { VoiceCallBar } from './VoiceCallBar';
+import { TalkBar } from './TalkBar';
 
 export function ChatView() {
   const bot = useSelectedBot();
@@ -35,6 +36,7 @@ export function ChatView() {
     <main className="chat" style={botVars(bot.avatarColor)}>
       <Transcript bot={bot} rows={rows} live={live} loaded={!!transcript?.loaded} />
       <VoiceCallBar />
+      <TalkBar />
       <Composer bot={bot} running={!!live?.isRunning} />
       <header className="chat__header">
         <button type="button" className="icon-btn icon-btn--bordered chat__back" onClick={() => set({ mobilePane: 'list' })} aria-label="Back to your bots">

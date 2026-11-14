@@ -30,6 +30,14 @@ const fakeBridge = http.createServer((req, res) => {
     return send(409, { error: 'nope' });
   });
 });
+// Stands in for an OpenAI-style speech server (Kokoro, a PC voice server...).
+const speechCalls = [];
+const fakeSpeech = http.createServer((req, res) => {
+  let raw = '';
+  req.on('data', (c) => (raw += c));
+  req.on('end', () => { speechCalls.push({ path: req.url, body: JSON.parse(raw || '{}') }); res.writeHead(200, { 'content-type': 'audio/mpeg' }); res.end(Buffer.from('ID3fakeaudio')); });
+});
+fakeSpeech.listen(18882, '127.0.0.1');
 const base = `http://127.0.0.1:${PORT}`;
 const procs = [];
 const start = (args, env) => {
@@ -39,7 +47,7 @@ const start = (args, env) => {
   procs.push(p);
   return p;
 };
-const cleanup = () => { fakeBridge.close(); for (const p of procs) p.kill(); fs.rmSync(home, { recursive: true, force: true }); };
+const cleanup = () => { fakeBridge.close(); fakeSpeech.close(); for (const p of procs) p.kill(); fs.rmSync(home, { recursive: true, force: true }); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let cookie = '';
@@ -230,6 +238,21 @@ async function run(wire) {
   const defs = (await api('GET', '/providers/defaults')).json;
   check('a default model for all bots can be set in Settings', setDef.status === 200 && defs.provider === provs[0].id && defs.model === 'model-x', JSON.stringify(defs));
   await api('PUT', '/providers/defaults', { provider: null, model: null });
+
+  // Voice: several engines; talk mode reads replies with the one chosen in Settings › Voice.
+  const sp = (await api('GET', '/speech/options')).json;
+  check('voice offers several ways to speak and to listen', sp.tts?.length >= 5 && sp.stt?.length >= 4 && sp.tts.some((t) => t.id === 'free') && sp.settings?.tts === 'device', JSON.stringify(sp).slice(0, 300));
+  const saved = (await api('PUT', '/speech/settings', { tts: 'custom', ttsUrl: 'http://127.0.0.1:18882/v1', ttsVoice: 'af_heart' })).json;
+  check('a custom voice server can be chosen', saved.settings?.tts === 'custom' && saved.settings.ttsUrl === 'http://127.0.0.1:18882/v1', JSON.stringify(saved.settings));
+  const audio = await fetch(`${base}/api/speech/speak`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ text: 'Hello **there**, see https://example.com' }) });
+  const said = speechCalls.pop();
+  check('a reply is read aloud through it, without markdown or links', audio.status === 200 && (audio.headers.get('content-type') ?? '').includes('audio') && said?.body.input === 'Hello there, see a link' && said.body.voice === 'af_heart', JSON.stringify(said));
+  check('a bad voice server address is refused', (await api('PUT', '/speech/settings', { ttsUrl: 'not a url' })).status === 400);
+  check('the free voice can be set up from the app', (await api('GET', '/setup/voice')).json.available === true);
+  await api('PUT', '/speech/settings', { tts: 'device' });
+  const fl = (await api('GET', '/providers')).json.providers.find((p) => p.id === 'freellmapi');
+  check('FreeLLMAPI is offered as a provider', !!fl && fl.models.includes('auto') && fl.baseUrl === 'http://127.0.0.1:3001/v1', JSON.stringify(fl));
+  check('FreeLLMAPI can be set up from the app', (await api('GET', '/setup/freellmapi')).json.available === true);
 
   const setup = (await api('GET', '/computer/setup')).json;
   check('the computer page reports where bots work', ['none', 'local', 'orgo'].includes(setup.mode) && setup.maxBots > 0, JSON.stringify(setup));

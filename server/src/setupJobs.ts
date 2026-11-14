@@ -1,20 +1,25 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { env } from './env.js';
 import { forgetEngine } from './native/localModels.js';
+import { freellmapiSetupScript, startService, voiceSetupScript } from './services.js';
+import { setAppSettings } from './env.js';
 
 /**
  * One-tap setup from inside the app, for YakkBot running in Termux or on Linux: the commands are
  * fixed here, never taken from the request, and each job runs at most once at a time.
  */
-export type JobId = 'engine' | 'desktop';
+export type JobId = 'engine' | 'desktop' | 'voice' | 'freellmapi';
 interface Job { state: 'idle' | 'running' | 'done' | 'failed'; log: string; startedAt: number | null }
-const jobs: Record<JobId, Job> = { engine: { state: 'idle', log: '', startedAt: null }, desktop: { state: 'idle', log: '', startedAt: null } };
+const fresh = (): Job => ({ state: 'idle', log: '', startedAt: null });
+const jobs: Record<JobId, Job> = { engine: fresh(), desktop: fresh(), voice: fresh(), freellmapi: fresh() };
 
 const has = (cmd: string) => { try { execFileSync('sh', ['-c', `command -v ${cmd}`], { stdio: 'ignore' }); return true; } catch { return false; } };
 
 /** The shell script for a job on this system, or why it can't run here. */
 function scriptFor(id: JobId): { script?: string; why?: string } {
-  if (process.platform === 'win32') return { why: 'Run install.ps1 again on Windows, or use WSL.' };
+  if (process.platform === 'win32') return { why: id === 'voice' ? 'On Windows run:  pip install edge-tts  then start YakkBot from WSL, or use another voice.' : 'Run install.ps1 again on Windows, or use WSL.' };
+  if (id === 'voice') return { script: voiceSetupScript() };
+  if (id === 'freellmapi') return { script: freellmapiSetupScript() };
   if (id === 'engine') {
     if (env.isTermux) return { script: 'pkg update -y && pkg install -y llama-cpp' };
     if (has('brew')) return { script: 'brew install llama.cpp' };
@@ -47,6 +52,12 @@ export function startJob(id: JobId) {
     j.state = code === 0 ? 'done' : 'failed';
     j.log += code === 0 ? '\nFinished.' : `\nStopped with exit code ${code}.`;
     if (id === 'engine') forgetEngine();
+    // A helper that installed fine is started right away, and again whenever YakkBot starts.
+    if (code === 0 && (id === 'voice' || id === 'freellmapi')) {
+      j.log += '\nStarting it…';
+      setAppSettings(id === 'voice' ? { autostartVoice: true } : { autostartFreellmapi: true });
+      void startService(id).then((r) => { j.log += `\n${r.message}`; if (!r.ok) j.state = 'failed'; });
+    }
   });
   return jobStatus(id);
 }

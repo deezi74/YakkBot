@@ -1,10 +1,11 @@
+import { autostartServices } from './services.js';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Server } from 'node:http';
-import { env } from './env.js';
+import { env, getAppSettings } from './env.js';
 import { api } from './routes.js';
 import { attachVncRelay } from './vnc.js';
 import { initRoutines } from './routines.js';
@@ -61,3 +62,5 @@ startIdleWatcher();
 initEngines();
 initTelegram();
 pairFromEnv();
+// Bring back the free voice and FreeLLMAPI if they were set up.
+{ const s = getAppSettings(); autostartServices({ voice: s.autostartVoice, freellmapi: s.autostartFreellmapi }); }

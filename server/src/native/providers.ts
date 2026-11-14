@@ -1,5 +1,5 @@
 import { db, now } from '../db.js';
-import { env, getAppSettings } from '../env.js';
+import { env, getAppSettings, setKeyLookup } from '../env.js';
 import type { EngineProvider } from '../types.js';
 import { bridge, pairing, appEngine, refreshAppEngine } from '../device.js';
 import { engine as localEngine, installedModels } from './localModels.js';
@@ -35,6 +35,8 @@ export const PROVIDERS: ProviderDef[] = [
   { id: 'xai', name: 'Grok (xAI)', wire: 'openai', baseUrl: 'https://api.x.ai/v1', envKey: 'XAI_API_KEY', models: [env.xaiModel], keyHint: 'xai-…' },
   { id: 'gemini', name: 'Gemini (Google)', wire: 'openai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', envKey: 'GEMINI_API_KEY', models: [] },
   { id: 'groq', name: 'Groq', wire: 'openai', baseUrl: 'https://api.groq.com/openai/v1', envKey: 'GROQ_API_KEY', models: [], keyHint: 'gsk_…' },
+  // One free endpoint over many free AI tiers (github.com/tashfeenahmed/freellmapi); "auto" lets it route.
+  { id: 'freellmapi', name: 'FreeLLMAPI (free models)', wire: 'openai', baseUrl: (process.env.FREELLMAPI_BASE_URL ?? 'http://127.0.0.1:3001/v1').replace(/\/+$/, ''), envKey: 'FREELLMAPI_KEY', models: ['auto', 'auto:fast', 'auto:smart'], keyHint: 'freellmapi-…' },
   { id: 'ollama', name: 'Ollama (local models)', wire: 'openai', baseUrl: (process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434/v1').replace(/\/+$/, ''), envKey: 'OLLAMA_API_KEY', models: [], keyless: true },
   { id: 'custom', name: 'Custom (OpenAI-compatible)', wire: 'openai', baseUrl: (process.env.CUSTOM_BASE_URL ?? process.env.OPENAI_BASE_URL ?? '').replace(/\/+$/, ''), envKey: 'CUSTOM_API_KEY', models: [] },
   // GGUF models downloaded to the phone and run by the YakkBot app (llama.cpp), offline.
@@ -59,6 +61,8 @@ export function providerKey(id: string): string {
   if (!def) return '';
   return stored(id)?.api_key || process.env[def.envKey] || '';
 }
+
+setKeyLookup((id) => { try { return stored(id)?.api_key || ''; } catch { return ''; } });
 
 export function providerBaseUrl(id: string): string {
   const def = providerDef(id);
@@ -151,8 +155,8 @@ export async function listProviders(): Promise<EngineProvider[]> {
     out.push({
       id: p.id, name: p.name, kind: 'api_key', connected,
       models: (connected ? await providerModels(p.id) : p.models).slice(0, 200),
-      keyless: !!p.keyless, needsBaseUrl: p.id === 'custom' || p.id === 'ollama',
-      baseUrl: p.id === 'custom' || p.id === 'ollama' ? providerBaseUrl(p.id) : undefined,
+      keyless: !!p.keyless, needsBaseUrl: p.id === 'custom' || p.id === 'ollama' || p.id === 'freellmapi',
+      baseUrl: p.id === 'custom' || p.id === 'ollama' || p.id === 'freellmapi' ? providerBaseUrl(p.id) : undefined,
       keyHint: p.keyHint, fromEnv: connected && !stored(p.id)?.api_key && !!process.env[p.envKey],
       defaultModel: defaultModel(p.id),
     });

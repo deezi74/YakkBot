@@ -230,3 +230,6 @@
 .ai-provider { display: flex; align-items: center; gap: 12px; }
 .ai-form { flex-wrap: wrap; }
 .ai-form .text-input { flex: 1 1 200px; }
+.voice-free { margin-top: 10px; }
+.voice-pick { display: flex; gap: 8px; margin-top: 10px; }
+.voice-pick .text-input { flex: 1; min-width: 0; }
