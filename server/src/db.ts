@@ -119,6 +119,17 @@ CREATE TABLE IF NOT EXISTS tasks (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS connections (
+  id TEXT PRIMARY KEY,
+  bot_id TEXT NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  other_bot_id TEXT REFERENCES bots(id) ON DELETE CASCADE,
+  name TEXT NOT NULL DEFAULT '',
+  relation TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS connections_bot ON connections(bot_id);
 CREATE TABLE IF NOT EXISTS memories (
   id TEXT PRIMARY KEY,
   bot_id TEXT NOT NULL REFERENCES bots(id) ON DELETE CASCADE,

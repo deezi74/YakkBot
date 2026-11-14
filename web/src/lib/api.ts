@@ -26,7 +26,12 @@ export type { Features };
 
 export interface RoomMember { id: string; name: string; label: string; avatarShape: string; avatarColor: string }
 
+export interface Conversation { generation: number; title: string; preview: string; messages: number; startedAt: number; updatedAt: number; current: boolean }
+
 export const api = {
+  conversations: (id: string) => req<{ conversations: Conversation[] }>('GET', `/bots/${id}/conversations`).then((r) => r.conversations),
+  openConversation: (id: string, gen: number) => req<{ ok: true }>('POST', `/bots/${id}/conversations/${gen}/open`),
+  deleteConversation: (id: string, gen: number) => req<{ ok: true }>('DELETE', `/bots/${id}/conversations/${gen}`),
   me: () => req<{ user: User | null; devLogin: boolean; features?: Features }>('GET', '/auth/me'),
   passwordLogin: (password: string) => req<{ ok: true }>('POST', '/auth/password', { password }),
   devLogin: (email: string, name?: string) => req<{ ok: true }>('POST', '/auth/dev', { email, name }),

@@ -84,3 +84,33 @@
   color: var(--color-ink); font-size: 14px; font-weight: 500; text-align: left;
 }
 .team-computer-link:hover { background: var(--color-bg-hover, #0000000d); }
+
+/* Phones: the Bots list slides in from the left, the chat from the right. */
+@media (max-width: 760px) {
+  .app.is-pane-list .sidebar { animation: pane-from-left 220ms var(--ease-out, ease-out); }
+  .app.is-pane-chat .chat { animation: pane-from-right 220ms var(--ease-out, ease-out); }
+}
+@keyframes pane-from-left { from { transform: translateX(-24%); opacity: 0.4; } }
+@keyframes pane-from-right { from { transform: translateX(24%); opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) { .app .sidebar, .app .chat { animation: none !important; } }
+
+/* Conversations with the selected Bot */
+.convs { margin: 14px 8px 0; padding-top: 10px; border-top: 0.5px solid var(--color-border-tertiary); }
+.convs__head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 0 10px; }
+.convs__toggle { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-text-secondary); }
+.convs__item { display: flex; align-items: center; border-radius: 10px; }
+.convs__item.is-current { background: var(--color-bg-hover, #0000000d); }
+.convs__open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; padding: 7px 10px; text-align: left; }
+.convs__title { max-width: 100%; font-size: 14px; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.convs__meta { font-size: 12px; color: var(--color-text-secondary); }
+.convs__del { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-right: 4px; border-radius: 50%; opacity: 0.5; }
+.convs__del:hover { opacity: 1; background: var(--color-bg-hover, #0000000d); }
+
+/* Connections */
+.conn-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.conn-chip { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 7px; border-radius: 999px; border: 0.5px solid var(--color-border-secondary, #0000002a); font-size: 13px; color: var(--color-ink); }
+.conn-chip.is-on { background: var(--color-ink); color: var(--color-bg-pane, #fff); border-color: transparent; }
+.conn-chip__state { font-size: 11px; opacity: 0.7; }
+.conn-initial { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--color-bg-hover, #0000000f); font-size: 13px; font-weight: 600; }
+.conn-form { display: grid; gap: 8px; margin-top: 12px; }
+.conn-form .cfg-btn { justify-self: start; }

@@ -1,6 +1,6 @@
 import { db } from '../db.js';
 import { env } from '../env.js';
-import { getBotRow, listRoutines } from '../store.js';
+import { getBotRow, listConnections, listRoutines } from '../store.js';
 import { connectedToolkits } from '../composio.js';
 import { deviceBridgeAvailable, phoneAvailable, screenAvailable, workspace } from '../native/tools.js';
 import { LIBRARY_ROOT } from './tools.js';
@@ -24,6 +24,9 @@ export async function instructionsFor(userId: string, botId: string): Promise<st
     .map((b) => `- ${b.name}${b.label ? ` (${b.label})` : ''}${b.is_primary ? ' [main point of contact]' : ''}`)
     .join('\n');
   const groups = (db.prepare("SELECT name FROM bots WHERE user_id=? AND kind='room' AND members LIKE ? ORDER BY created_at").all(userId, `%${botId}%`) as any[]).map((g) => g.name).join(', ');
+  const conns = listConnections(botId);
+  const friends = conns.filter((c) => c.kind === 'bot').map((c) => `${c.name}${c.relation ? ` (${c.relation})` : ''}`).join(', ');
+  const people = conns.filter((c) => c.kind === 'person').map((c) => `- ${c.name}${c.relation ? `, ${c.relation}` : ''}${c.note ? `: ${c.note}` : ''}`).join('\n');
   const skills = (db.prepare('SELECT name, body FROM skills WHERE bot_id=? ORDER BY created_at').all(botId) as any[]).map((s) => `### ${s.name}\n${s.body}`).join('\n\n');
   const routines = listRoutines(botId).map((r) => `- ${r.name} (${r.id}): ${r.enabled ? r.description : 'paused'}; ${r.prompt.slice(0, 120)}`).join('\n');
   let apps = '';
@@ -47,6 +50,7 @@ export async function instructionsFor(userId: string, botId: string): Promise<st
   tools.push('- ask_user asks a multiple-choice question when you need a real decision. After calling it, stop; the answer arrives as the next message.');
   tools.push(`- create_task and update_task track work ${owner} asked for, so they can see what is in progress.`);
   tools.push(`- For anything on a schedule that ${owner} should see and control in the app, use create_routine${env.composioKey ? ' (or create_event_routine for "whenever X happens in an app")' : ''}, not a private cron job.`);
+  tools.push('- connect remembers a person you learn about (name, how they relate to the user, a short note) or connects you with another bot on the team; disconnect removes one.');
   tools.push('- send_to_bot hands work to another agent on the team or asks them something. Their reply comes back to you as a message. post_to_group posts into a group chat you belong to.');
   tools.push(`- stay_silent ends a turn without telling ${owner} anything. Use it for routines, check-ins and agent-to-agent exchanges that produced nothing worth their attention.`);
 
@@ -87,7 +91,7 @@ ${computer}
 
 ## Context
 - User: ${owner}${user?.email && !user.email.endsWith('.local') ? ` <${user.email}>` : ''}
-${env.composioKey ? `- Connected apps: ${apps || 'none yet'}\n` : ''}${team ? `- Other agents on the team:\n${team}` : '- You are the only agent on the team so far.'}${groups ? `\n- Group chats you are in: ${groups}` : ''}
+${env.composioKey ? `- Connected apps: ${apps || 'none yet'}\n` : ''}${team ? `- Other agents on the team:\n${team}` : '- You are the only agent on the team so far.'}${groups ? `\n- Group chats you are in: ${groups}` : ''}${friends ? `\n- Bots you are connected with (your friends on the team; you know them best and can lean on them): ${friends}` : ''}${people ? `\n- People you know (your connections; use what you know about them):\n${people}` : ''}
 ${routines ? `\n## Your routines in the app\n${routines}\n` : ''}${skills ? `\n## Skills ${owner} gave you\n${skills}\n` : ''}${bot.instructions ? `\n## Instructions from ${owner}\n${bot.instructions}\n` : ''}`;
 }
 

@@ -193,6 +193,31 @@ async function run(wire) {
   await api('DELETE', `/bots/${third.id}`);
   await api('DELETE', '/device');
 
+  // Conversations: a new chat keeps the old one, which can be reopened with its messages.
+  const before = (await api('GET', `/bots/${bot.id}/conversations`)).json.conversations;
+  const oldGen = before.find((c) => c.current).generation;
+  await api('POST', `/bots/${bot.id}/fresh`, {});
+  const after = (await api('GET', `/bots/${bot.id}/conversations`)).json.conversations;
+  check('a new chat keeps the earlier conversation', after.some((c) => c.generation === oldGen && !c.current && c.messages > 0) && after.find((c) => c.current).generation > oldGen, JSON.stringify(after.slice(0, 3)));
+  check('reopening an earlier conversation works', (await api('POST', `/bots/${bot.id}/conversations/${oldGen}/open`, {})).status === 200);
+  const back = (await api('GET', `/bots/${bot.id}/rows`)).json;
+  check('its messages come back', back.generation === oldGen && back.rows.some((r) => r.kind === 'message'), JSON.stringify(back).slice(0, 200));
+  await api('POST', `/bots/${bot.id}/fresh`, {});
+  const gens = (await api('GET', `/bots/${bot.id}/conversations`)).json.conversations.map((c) => c.generation);
+  check('a new chat never reuses a conversation number', new Set(gens).size === gens.length, JSON.stringify(gens));
+
+  // Social connections: bot friendships go both ways; people stay with the bot that knows them.
+  const pal = (await api('POST', '/bots', { name: 'Pal' })).json.bot;
+  await api('POST', `/bots/${bot.id}/connections`, { kind: 'bot', otherBotId: pal.id, relation: 'research buddy' });
+  const mine = (await api('POST', `/bots/${bot.id}/connections`, { kind: 'person', name: 'Ana', relation: 'sister', note: 'loves hiking' })).json.connections;
+  const theirs = (await api('GET', `/bots/${pal.id}/connections`)).json.connections;
+  check('connecting two bots makes them friends both ways', mine.some((c) => c.kind === 'bot' && c.name === 'Pal') && theirs.some((c) => c.kind === 'bot' && c.otherBotId === bot.id), JSON.stringify({ mine, theirs }));
+  check('a person is remembered with their relation', mine.some((c) => c.kind === 'person' && c.name === 'Ana' && c.relation === 'sister'));
+  const friend = mine.find((c) => c.kind === 'bot');
+  await api('DELETE', `/bots/${bot.id}/connections/${friend.id}`);
+  check('unfriending removes both sides', !(await api('GET', `/bots/${pal.id}/connections`)).json.connections.length);
+  await api('DELETE', `/bots/${pal.id}`);
+
   const setup = (await api('GET', '/computer/setup')).json;
   check('the computer page reports where bots work', ['none', 'local', 'orgo'].includes(setup.mode) && setup.maxBots > 0, JSON.stringify(setup));
   check('Orgo setup without a key asks for one', (await api('POST', '/computer/orgo/key', {})).status === 400);

@@ -159,6 +159,17 @@ This installs XFCE with a VNC server (a large download on a phone), and the app 
 the screen with a take-control mode. Bots get a `screen` tool (screenshot, click, type) that works
 with models that accept images.
 
+## What it combines
+
+| From | In YakkBot |
+|---|---|
+| Grok Bot | Texting-style chats, many bots, voice mode (mic + spoken replies), live X search (`x_search`, with an xAI key) |
+| Muse | Social connections: bots befriend each other (both ways) and remember the people in your life (Bot settings › Connections, or just mention them in chat); editable soul and memory files (Bot settings › Memories) |
+| Dots | Each bot's own computer screen you can watch or take over, the live thinking indicator, and multi-session chats: **New chat** keeps the old one, and every earlier conversation can be reopened or deleted |
+
+On a phone, **swipe right** anywhere in a chat to slide in your bots, the chats with the current
+bot, your profile circle and settings; swipe left to go back.
+
 ## The bots' computer
 
 Open **Settings › Computer** and pick where your bots work. Everything is set up in the app:

@@ -231,7 +231,8 @@ export interface Toolkit {
 export type ServerEvent =
   | { type: 'hello'; serverTime: number }
   | { type: 'rows'; botId: string; generation: number; rows: Row[] }
-  | { type: 'cleared'; botId: string; generation: number }
+  | { type: 'cleared'; botId: string; generation: number; reload?: boolean }
+  | { type: 'social'; botId: string }
   | { type: 'live'; state: LiveState }
   | { type: 'roster' }
   | { type: 'bot'; bot: Bot }

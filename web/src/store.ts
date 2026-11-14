@@ -33,6 +33,8 @@ interface State {
   viewerHint: string | null;
   /** Every bot's screen side by side. */
   teamComputerOpen: boolean;
+  /** Bumped when a bot's social connections change, so open pages reload them. */
+  socialVersion: Record<string, number>;
   /** Narrow screens show one pane at a time: the list of bots, or the open chat. */
   mobilePane: 'list' | 'chat';
 
@@ -75,6 +77,7 @@ export const useStore = create<State>((set, get) => ({
   viewerMode: 'watch',
   viewerHint: null,
   teamComputerOpen: false,
+  socialVersion: {},
   mobilePane: 'list',
 
   async checkAuth() {
@@ -158,7 +161,12 @@ export const useStore = create<State>((set, get) => ({
         s.upsertRows(ev.botId, ev.generation, ev.rows);
         return;
       case 'cleared':
-        set((st) => ({ transcripts: { ...st.transcripts, [ev.botId]: { generation: ev.generation, bySeq: {}, loaded: true } } }));
+        set((st) => ({ transcripts: { ...st.transcripts, [ev.botId]: { generation: ev.generation, bySeq: {}, loaded: !ev.reload } } }));
+        // An earlier conversation was reopened: fetch its messages.
+        if (ev.reload) get().loadRows(ev.botId).catch(console.error);
+        return;
+      case 'social':
+        set((st) => ({ socialVersion: { ...st.socialVersion, [ev.botId]: (st.socialVersion[ev.botId] ?? 0) + 1 } }));
         return;
       case 'live':
         set((st) => ({ live: { ...st.live, [ev.state.botId]: ev.state } }));

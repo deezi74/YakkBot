@@ -32,6 +32,8 @@ export interface ComputerDetails {
   hibernation: { idleMinutes: number; viewers: number; dryRun: boolean };
 }
 
+export interface Connection { id: string; kind: 'bot' | 'person'; otherBotId: string | null; name: string; relation: string; note: string; createdAt: number }
+
 export interface SetupJob { id: string; state: 'idle' | 'running' | 'done' | 'failed'; log: string; startedAt: number | null; available: boolean; why: string | null }
 
 export interface ComputerSetup {
@@ -72,6 +74,9 @@ export const configApi = {
   computerDetails: () => req<ComputerDetails>('GET', '/computer/details'),
   setupJob: (job: 'engine' | 'desktop') => req<SetupJob>('GET', `/setup/${job}`),
   startSetupJob: (job: 'engine' | 'desktop') => req<SetupJob>('POST', `/setup/${job}`),
+  connections: (botId: string) => req<{ connections: Connection[] }>('GET', `/bots/${botId}/connections`).then((r) => r.connections),
+  addConnection: (botId: string, c: { kind: 'bot' | 'person'; otherBotId?: string; name?: string; relation?: string; note?: string }) => req<{ connections: Connection[] }>('POST', `/bots/${botId}/connections`, c).then((r) => r.connections),
+  removeConnection: (botId: string, id: string) => req<{ connections: Connection[] }>('DELETE', `/bots/${botId}/connections/${id}`).then((r) => r.connections),
   computerSetup: () => req<ComputerSetup>('GET', '/computer/setup'),
   orgoKey: (key?: string) => req<{ workspaces: OrgoWorkspace[] }>('POST', '/computer/orgo/key', { key }),
   orgoUse: (computerId: string, name: string) => req<{ ok: true }>('POST', '/computer/orgo/use', { computerId, name }),

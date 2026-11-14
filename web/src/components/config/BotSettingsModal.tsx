@@ -8,6 +8,7 @@ import { useStore } from '../../store';
 import { Icon } from '../Icon';
 import { Modal } from '../modals/Modal';
 import { Glyph } from './glyphs';
+import { ConnectionsTab } from './ConnectionsTab';
 import { ConfirmButton, Field, Segmented, Switch, nextRunLabel, shortDate } from './ui';
 
 const EFFORTS: { value: Bot['effort']; label: string }[] = [
@@ -51,6 +52,7 @@ export function BotSettingsModal() {
     { id: 'general', label: 'General' },
     { id: 'skills', label: 'Skills', count: data?.skills.length },
     { id: 'memories', label: 'Memories', count: data?.memories.length },
+    { id: 'connections', label: 'Connections' },
     { id: 'routines', label: 'Routines', count: (routines ?? data?.routines)?.length },
   ];
 
@@ -77,6 +79,7 @@ export function BotSettingsModal() {
           {target.tab === 'general' && <GeneralTab bot={bot} onClose={onClose} />}
           {target.tab === 'skills' && <SkillsTab bot={bot} skills={data?.skills} onChange={reload} />}
           {target.tab === 'memories' && <MemoriesTab bot={bot} data={data} onChange={reload} />}
+          {target.tab === 'connections' && <ConnectionsTab bot={bot} />}
           {target.tab === 'routines' && <RoutinesTab bot={bot} routines={routines ?? data?.routines} />}
         </div>
       </div>
