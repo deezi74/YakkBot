@@ -9,7 +9,8 @@ import { createSession, destroySession, isOwnerKey, requireUser, userFromCookieH
 import { allLive, appendRow, clearConversation, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, updateRow } from './store.js';
 import { enqueue, interrupt, resolveApproval } from './agent/loop.js';
 import { computerState, ensureComputer, forgetBotFiles, localScreenshot, readyScreen, refreshComputer, releaseScreen, suspendComputer } from './computer.js';
-import { assignEngine, provisionEngine, removeEngine, syncPersona } from './engine.js';
+import { assignEngine, engineHome, engineKind, provisionEngine, removeEngine, syncPersona } from './engine.js';
+import { readHomeFile, writeHomeFile } from './native/home.js';
 import { deleteMemory, listMemories, memoryBot } from './engine-memory.js';
 import { orgo } from './orgo.js';
 import { catalog, connectedToolkits, deleteConnection, disconnect, googleProfile, startConnect, startGoogleLogin, toolkitInfo } from './composio.js';
@@ -250,6 +251,59 @@ api.delete('/bots/:id', async (c) => {
   db.prepare('DELETE FROM bots WHERE id=?').run(b.id);
   hub.emit(c.get('user').id, { type: 'roster' });
   return c.json({ ok: true });
+});
+
+// ---------- bot cards: share a bot with a friend, or bring one in ----------
+// A card carries who the bot is (look, role, instructions, soul, skills), never its chats or memories,
+// unless the owner ticks "include memories".
+
+const CARD_FORMAT = 'yakkbot-bot/1';
+const clip = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
+
+api.get('/bots/:id/card', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b || b.kind === 'room') return c.json({ error: 'not found' }, 404);
+  const home = engineHome(b.id);
+  const withMemory = c.req.query('memory') === '1' && engineKind(b.id) !== 'primary';
+  const card = {
+    format: CARD_FORMAT,
+    name: b.name, label: b.label, description: b.description, instructions: b.instructions,
+    avatarShape: b.avatar_shape, avatarColor: b.avatar_color, effort: b.effort, voice: b.voice ?? 'luna',
+    soul: home && engineKind(b.id) !== 'primary' ? readHomeFile(home, 'soul') : '',
+    skills: (db.prepare('SELECT name, description, body FROM skills WHERE bot_id=? ORDER BY created_at').all(b.id) as any[]).map((s) => ({ name: s.name, description: s.description ?? '', body: s.body })),
+    ...(withMemory && home ? { memory: readHomeFile(home, 'memory') } : {}),
+    sharedAt: new Date().toISOString(),
+  };
+  const file = `${String(b.name).replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'bot'}.yakkbot.json`;
+  return c.body(JSON.stringify(card, null, 2), 200, { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${file}"` });
+});
+
+api.post('/bots/import', async (c) => {
+  const user = c.get('user');
+  const { card } = await c.req.json<{ card?: any }>().catch(() => ({ card: null }));
+  if (!card || card.format !== CARD_FORMAT || typeof card.name !== 'string' || !card.name.trim()) return c.json({ error: 'That is not a YakkBot bot card.' }, 400);
+  try {
+    const bot = createBot(user.id, {
+      name: clip(card.name, 60), label: clip(card.label, 60), description: clip(card.description, 1000), instructions: clip(card.instructions, 8000),
+      avatarShape: clip(card.avatarShape, 20), avatarColor: clip(card.avatarColor, 20), mode: 'personal',
+    });
+    if (['low', 'medium', 'high', 'xhigh'].includes(card.effort)) db.prepare('UPDATE bots SET effort=? WHERE id=?').run(card.effort, bot.id);
+    if (typeof card.voice === 'string' && /^[\w-]{1,40}$/.test(card.voice)) db.prepare('UPDATE bots SET voice=? WHERE id=?').run(card.voice, bot.id);
+    const home = engineHome(bot.id);
+    if (home && engineKind(bot.id) === 'native') {
+      if (clip(card.soul, 20000).trim()) writeHomeFile(home, 'soul', clip(card.soul, 20000));
+      if (clip(card.memory, 6000).trim()) writeHomeFile(home, 'memory', clip(card.memory, 6000));
+    }
+    const ins = db.prepare('INSERT INTO skills(id,bot_id,name,body,description,created_at,updated_at) VALUES (?,?,?,?,?,?,?)');
+    for (const s of (Array.isArray(card.skills) ? card.skills : []).slice(0, 50)) {
+      if (typeof s?.name === 'string' && typeof s?.body === 'string' && s.name.trim() && s.body.trim()) ins.run(newId('skl'), bot.id, clip(s.name, 80), clip(s.body, 20000), clip(s.description, 300), now(), now());
+    }
+    emitBot(bot.id);
+    return c.json({ bot: getBot(bot.id) });
+  } catch (e: any) {
+    if (e instanceof UserError) return c.json({ error: e.message }, 409);
+    throw e;
+  }
 });
 
 api.post('/bots/:id/primary', (c) => {

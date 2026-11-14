@@ -20,7 +20,11 @@ const fakeBridge = http.createServer((req, res) => {
     const send = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
     if (req.headers.authorization !== `Bearer ${BRIDGE_TOKEN}`) return send(401, { error: 'unauthorized' });
     bridgeCalls.push({ path: req.url, body: JSON.parse(raw || '{}') });
-    if (req.url === '/status') return send(200, { ok: true, screenControl: true });
+    if (req.url === '/status') return send(200, { ok: true, screenControl: true, phone: true });
+    if (req.url === '/models/status') return send(200, { engine: true, ramGb: 8, recommended: 'qwen35-2b', state: 'stopped', running: '', catalog: [], installed: [{ file: 'tiny.gguf', bytes: 1000 }], downloads: [] });
+    if (req.url === '/models/use') return send(200, { ok: true, port: 8081 });
+    if (req.url === '/desktop/status') return send(200, { state: 'none' });
+    if (req.url === '/phone') return send(200, { ok: true, output: `Text sent to ${JSON.parse(raw).number}.` });
     if (req.url === '/ui/dump') return send(200, { app: 'com.example', screen: { width: 1080, height: 2400 }, nodes: [{ text: 'Send', kind: 'Button', x: 900, y: 2200, tap: true }] });
     if (req.url === '/ui/tap') return send(200, { ok: true, x: 900, y: 2200 });
     return send(409, { error: 'nope' });
@@ -64,7 +68,9 @@ const lastAssistant = (rs) => rs.filter((r) => r.kind === 'message' && r.body.ro
 
 async function run(wire) {
   console.log(`\n== ${wire} wire ==`);
-  const env = { YAKK_HOME: path.join(home, wire), PORT: String(PORT), YAKK_PASSWORD: 'correct horse', NODE_NO_WARNINGS: '1' };
+  const env = { YAKK_HOME: path.join(home, wire), PORT: String(PORT), YAKK_PASSWORD: 'correct horse', NODE_NO_WARNINGS: '1', LLAMA_SERVER: path.join(root, 'tests/fake-llama-server.mjs'), YAKK_MODEL_PORT: '18881' };
+  fs.mkdirSync(path.join(home, wire, 'models'), { recursive: true });
+  fs.writeFileSync(path.join(home, wire, 'models', 'tiny.gguf'), 'GGUF');
   if (wire === 'openai') Object.assign(env, { CUSTOM_BASE_URL: `http://127.0.0.1:${MOCK}/v1`, CUSTOM_MODEL: 'mock-1' });
   else Object.assign(env, { ANTHROPIC_BASE_URL: `http://127.0.0.1:${MOCK}`, ANTHROPIC_API_KEY: 'sk-ant-test' });
   const server = start([path.join(root, 'server/dist/index.js')], env);
@@ -121,6 +127,18 @@ async function run(wire) {
   await api('POST', `/bots/${second.id}/messages`, { text: 'ping' });
   rs = await settle(second.id, (r) => !!lastAssistant(r));
   check('the second bot answers on its own thread', lastAssistant(rs) === 'You said: ping', lastAssistant(rs));
+  // Bot cards: share a bot, bring it back as a new one.
+  await api('POST', `/bots/${second.id}/skills`, { name: 'Morning brief', body: 'Check the weather and my calendar.' });
+  const cardRes = await fetch(`${base}/api/bots/${second.id}/card`, { headers: { cookie } });
+  const botCard = await cardRes.json();
+  check('a bot card carries the look, soul and skills', botCard.format === 'yakkbot-bot/1' && botCard.name === 'Scout' && botCard.soul.includes('Soul') && botCard.skills?.[0]?.name === 'Morning brief' && !('memory' in botCard), JSON.stringify(botCard).slice(0, 300));
+  check('the card downloads as a file', /attachment; filename="Scout\.yakkbot\.json"/.test(cardRes.headers.get('content-disposition') ?? ''));
+  const imported = (await api('POST', '/bots/import', { card: { ...botCard, name: 'Scout Two' } })).json.bot;
+  check('importing a card makes a new bot', imported?.name === 'Scout Two' && imported.id !== second.id, JSON.stringify(imported));
+  const importedSkills = (await api('GET', `/bots/${imported.id}/skills`)).json.skills;
+  check('the imported bot has the skills', importedSkills?.[0]?.name === 'Morning brief');
+  check('a file that is not a card is refused', (await api('POST', '/bots/import', { card: { hello: 1 } })).status === 400);
+  await api('DELETE', `/bots/${imported.id}`);
   check('deleting a bot works', (await api('DELETE', `/bots/${second.id}`)).status === 200);
 
   // The Android app's phone bridge: pair, then use it through the device tool (with an approval).
@@ -146,6 +164,33 @@ async function run(wire) {
     rs = await settle(bot.id, (r) => lastAssistant(r)?.startsWith('Tool said: Tapped'));
     check('the tap reaches the phone bridge', bridgeCalls.some((c) => c.path === '/ui/tap' && c.body.text === 'Send'), JSON.stringify(bridgeCalls));
   }
+  // Texting goes through the app (it has the SMS permission), after the owner approves it.
+  await api('POST', `/bots/${bot.id}/messages`, { text: 'phone: sms_send {"number":"Mom","text":"on my way"}' });
+  rs = await settle(bot.id, (r) => r.some((x) => x.kind === 'card' && x.body.card === 'approval' && x.body.status === 'pending'));
+  const smsCard = rs.find((x) => x.kind === 'card' && x.body.card === 'approval' && x.body.status === 'pending');
+  check('texting asks first', !!smsCard && /text Mom/.test(smsCard.body.title), JSON.stringify(smsCard?.body));
+  if (smsCard) {
+    await api('POST', `/approvals/${smsCard.body.approvalId}`, { decision: 'allow' });
+    rs = await settle(bot.id, (r) => lastAssistant(r)?.startsWith('Tool said: Text sent'));
+    check('the text is sent through the app', bridgeCalls.some((c) => c.path === '/phone' && c.body.action === 'sms_send' && c.body.text === 'on my way'), JSON.stringify(bridgeCalls.slice(-2)));
+  }
+  // Models on this device: a downloaded GGUF, run by llama-server (here a stand-in) when a bot uses it.
+  const providers = (await api('GET', '/providers')).json.providers;
+  const phoneProv = providers.find((p) => p.id === 'phone');
+  check('the on-device provider lists downloaded models', phoneProv?.connected && phoneProv.models.includes('tiny.gguf'), JSON.stringify(phoneProv));
+  const models = (await api('GET', '/phone-models')).json;
+  check('the models page shows the engine, the list and the download', models.engine === true && models.catalog?.length > 5 && models.installed?.some((m) => m.file === 'tiny.gguf'), JSON.stringify(models).slice(0, 300));
+  check('a download that is not from Hugging Face is refused', (await api('POST', '/phone-models/download', { url: 'https://example.com/x.gguf', file: 'x.gguf' })).status === 400);
+  const third = (await api('POST', '/bots', { name: 'Pocket', mode: 'personal' })).json.bot;
+  await api('PATCH', `/bots/${third.id}/engine`, { provider: 'phone', model: 'tiny.gguf' });
+  await api('POST', `/bots/${third.id}/messages`, { text: 'offline hello' });
+  rs = await settle(third.id, (r) => !!lastAssistant(r) || r.some((x) => x.kind === 'notice'));
+  check('a bot answers with a model on this device', lastAssistant(rs) === 'You said: offline hello', lastAssistant(rs) ?? JSON.stringify(rs.slice(-1)));
+  check('the engine is running that model', (await api('GET', '/phone-models')).json.running === 'tiny.gguf');
+  await api('POST', '/phone-models/stop', {});
+  await api('DELETE', `/bots/${third.id}`);
+  check('the computer card can ask the app about the desktop', (await api('GET', '/desktop')).json.state === 'none');
+  await api('DELETE', `/bots/${third.id}`);
   await api('DELETE', '/device');
 
   const mcp = await fetch(`${base}/mcp/${bot.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });

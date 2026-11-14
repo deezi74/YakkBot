@@ -25,7 +25,8 @@ an add-on.
 
 - **Chat that shows the work.** While a bot works you see what it is doing and each step it took.
 - **A built-in engine.** No Hermes, no cloud VM. Claude (Anthropic API), OpenAI, OpenRouter, Grok,
-  Gemini, Groq, a local Ollama, or any OpenAI-compatible endpoint. Paste a key in the app.
+  Gemini, Groq, a local Ollama, any OpenAI-compatible endpoint, or GGUF models downloaded to the
+  phone and run offline in the app.
 - **The phone is the bot's computer.** Shell, files, web search and fetch, and through Termux:API:
   notifications, clipboard, location, SMS, calls, contacts, camera, text-to-speech.
 - **Approvals.** Destructive or outward-facing shell commands, texts and calls, and reads of private
@@ -33,6 +34,8 @@ an add-on.
 - **Soul and memory you can read and edit.** Plain files per bot, with an editor in Bot settings.
 - **A team.** Bots hand work to each other, share group chats, keep task lists, and run routines on a
   cron schedule.
+- **Share a bot.** Save a bot card (look, role, instructions, soul and skills; never its chats or
+  memories) and send it to a friend, who imports it under New Bot.
 - **A Library** per bot for the files it makes, downloadable from the app.
 - **Installs as an app.** Add to Home screen from Chrome for a full-screen icon.
 - **Add-ons when you want them:** Telegram bridge, voice calls and X research (xAI), connected apps
@@ -41,53 +44,39 @@ an add-on.
 
 ## Install
 
-### Android (Termux)
+### Android: the YakkBot app (no Termux)
 
-Install [Termux](https://f-droid.org/packages/com.termux/) from F-Droid (the Play Store build is out
-of date). For the phone tools also install [Termux:API](https://f-droid.org/packages/com.termux.api/),
-and [Termux:Boot](https://f-droid.org/packages/com.termux.boot/) if you want it to start on boot.
+1. Download **[yakkbot.apk](https://github.com/deezi74/YakkBot/releases/latest/download/yakkbot.apk)** on the phone and open it. Android asks you to allow installs from your browser or file manager.
+2. Open YakkBot, type what your bots should call you, and tap **Set up YakkBot**. The app downloads a small Linux system (Alpine, about 150 MB with Node.js) into itself, the same way D-Agent does, and starts your bots in it. This takes a few minutes the first time.
+3. You're signed in automatically. Open your bot's details, and under **Engine** pick a provider and paste an API key.
+4. Under **Settings > Phone control**, allow what the bots may use: texts, calls, contacts, calendar, location, screen control, notifications.
+
+Needs a 64-bit ARM phone (almost any phone from the last several years) with Android 8 or newer.
+
+What the app gives the bots, with your permission (they still ask before each kind of action):
+
+- **Texts and calls:** send and read texts, place calls (pick SIM 1 or 2), read call history, look people up in contacts.
+- **Calendar, alarms and timers:** read and add events, set alarms and timers.
+- **Location, notifications, clipboard, speech, flashlight, volume, maps, sharing.**
+- **Screen control:** read the screen, tap, swipe and type in any app, open apps, read and clear notifications. This uses Android's accessibility and notification-access services, which you switch on in Android's own settings. On Android 13 and newer, open **App info** for YakkBot, tap **⋮**, choose **Allow restricted settings**, then turn it on.
+- **A Linux computer:** shell, files, Python, Node and git inside the app (`apk add` for more).
+- **A computer screen, like Dots:** open a bot's details and tap **Install** on "Give it a computer" (about 600 MB). The bots get a desktop with Chromium; you watch it live in the chat and can take over the mouse and keyboard.
+- **Models on the phone (offline, no API key):** Settings > **On-device models** downloads GGUF models (Qwen3.5, Gemma 4, LFM2.5, Nemotron and more, sized to your phone's memory) or any GGUF from Hugging Face, and runs them with llama.cpp. Then pick **On this phone** in a bot's Engine panel.
+
+Android stops background apps aggressively: allow YakkBot to run in the background when the app asks. The app restarts your bots after the phone reboots.
+
+**From your PC:** Settings > Phone control > *Use it from your PC* opens YakkBot to your home Wi-Fi; open `http://<phone's Wi-Fi address>:8787` on the PC and sign in with the passphrase shown there.
+
+### Android: in Termux instead
+
+If you would rather run the server in Termux yourself, install [Termux](https://f-droid.org/packages/com.termux/) from F-Droid and run:
 
 ```bash
-pkg install -y curl
+pkg upgrade -y
 curl -fsSL https://raw.githubusercontent.com/deezi74/YakkBot/main/install.sh | bash
 ```
 
-The installer prints your sign-in passphrase and the address (`http://localhost:8787`). Open it in
-Chrome, sign in, open your bot's details, and under **Engine** pick a provider and paste a key.
-Then: Chrome menu > **Add to Home screen**.
-
-Android stops background apps aggressively. Two settings keep YakkBot alive: in Android Settings set
-Termux's battery use to **Unrestricted**, and run `yakkbot boot` so it comes back after a restart.
-On Android 12+ also disable the phantom process killer once from a computer:
-`adb shell "settings put global settings_enable_monitor_phantom_procs false"`.
-
-### The Android app (optional, recommended)
-
-A small app that makes YakkBot feel native and lets the bots operate the phone itself:
-
-- **Starts everything for you.** Opening the app starts the server in Termux; so does a reboot.
-- **Full-screen chat** with a home-screen icon and a working Back button.
-- **Phone control.** With your permission, bots read the screen and tap, swipe and type in any
-  app, open apps, and read or clear notifications. This uses Android's accessibility and
-  notification-access services, which you switch on in Android's own settings.
-
-Download: https://github.com/deezi74/YakkBot/releases/latest/download/yakkbot.apk
-(or build it: `cd android && gradle assembleRelease`).
-
-1. Install Termux and run the install command above first. The installer also tells Termux to
-   accept commands from the app.
-2. Install the APK. Android asks you to allow installs from your browser or file manager.
-3. Open YakkBot. Tap **Allow** on "Let this app start YakkBot", then sign in.
-4. Under **Phone control**, turn on screen control and notification access.
-
-Android 13 and newer block accessibility for apps installed outside a store until you allow it:
-open **App info** for YakkBot, tap **⋮**, choose **Allow restricted settings**, then turn it on.
-
-What the app cannot do: Android gives no app the power to grant itself these switches, so the
-two settings toggles and the first Termux command are yours to do once. Bots ask before they first
-look at or touch the screen, and "Always allow" remembers your answer; take it back under
-Settings > Permissions. Screens that block capture (banking apps, password fields) stay blocked.
-Texts, calls, contacts, location and the camera go through Termux:API, not this app.
+Then open `http://localhost:8787` in Chrome. The YakkBot app also works with a server you started in Termux.
 
 ### Linux and Chromebook (Crostini)
 
@@ -137,6 +126,18 @@ Things to try once a model is connected:
 - "Remember that I want answers in two sentences unless I ask for more."
 - Create a second bot called Scout with the label Research, then tell your main bot: "Ask Scout to
   compare the three cheapest ARM64 mini PCs and report back."
+
+### On-device models (GGUF, offline)
+
+Settings > **On-device models** downloads GGUF models (a list sized to your device's memory, or any
+GGUF from Hugging Face) and runs them with llama.cpp, offline and with no API key. Tap **Use** on a
+downloaded model, or pick **On this device** in a bot's Engine panel. The first reply loads it.
+
+- **YakkBot app:** works out of the box.
+- **Termux:** the installer adds `llama-cpp`; if it is missing, run `pkg install llama-cpp` and `yakkbot restart`.
+- **PC:** install llama.cpp so `llama-server` is on the PATH (or set `LLAMA_SERVER=/path/to/llama-server`).
+
+Small models are much weaker than Claude or GPT: good for quick jobs, not long multi-step ones.
 
 ### Telegram
 
@@ -204,7 +205,7 @@ server/src/native/    the built-in engine: providers, model adapters, agent loop
 server/src/agent/     turns, approvals, the app's own tools (tasks, routines, bot-to-bot)
 server/src/channels/  Telegram
 server/src/device.ts  pairing with the Android app's phone bridge
-android/              the Android app (Java, no dependencies): chat shell, Termux launcher, phone bridge
+android/              the Android app (Java, no dependencies): built-in Linux, chat window, phone bridge and actions
 server/src/           API, MCP endpoint, engines, computer modes, VNC relay, voice
 web/src/              the app
 scripts/yakkbot.sh    the yakkbot command
@@ -215,9 +216,10 @@ docs/ARCHITECTURE.md  how it fits together
 ## Status and limits
 
 - Tested here: the server, both model protocols against a mock server, the web app in a
-  phone-sized Chromium, and the bots' side of phone control against a stand-in bridge. The Android
-  app compiles and is signed, but has not been run on a device. **Not yet run on a real phone or against a real model provider**; expect to
-  shake out a few things on first install.
+  phone-sized Chromium, the bundled server run the way the app runs it (sign-in, pairing, a bot's
+  shell command), and texting and screen control through a stand-in for the app. The Android app
+  compiles, but its built-in Linux and phone actions **have not run on a real phone yet**; expect
+  to shake out a few things on first install.
 - Voice, connected apps, Hermes and Orgo paths are Bot HQ's code, kept working by type but not
   exercised here.
 - One owner per install. No attachments in chat yet.

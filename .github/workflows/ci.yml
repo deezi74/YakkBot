@@ -20,6 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      # The app carries the chat app and the server (one file); it runs them in its own Linux.
+      - run: npm ci && npm run build -w web && node server/bundle.mjs
+      - name: PRoot engine for the built-in Linux
+        run: |
+          sudo apt-get install -y patchelf >/dev/null
+          bash android/scripts/fetch-proot.sh android/app/src/main/jniLibs/arm64-v8a
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - uses: gradle/actions/setup-gradle@v4

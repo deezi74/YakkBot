@@ -36,6 +36,20 @@ export function CreateBotModal() {
     }
   };
 
+  // A bot card a friend shared (Bot settings > Share).
+  const importCard = async (file: File) => {
+    setError(null);
+    try {
+      const card = JSON.parse(await file.text());
+      const { bot } = await api.importBot(card);
+      useStore.getState().set({ bots: [...useStore.getState().bots.filter((b) => b.id !== bot.id), bot] });
+      useStore.getState().selectBot(bot.id);
+      close();
+    } catch (e) {
+      setError(e instanceof SyntaxError ? 'That file is not a bot card.' : (e as Error).message || 'Could not import that card.');
+    }
+  };
+
   return (
     <Modal onClose={close} className="create-modal" label="Create New Bot">
       <form onSubmit={(e) => { e.preventDefault(); create(); }}>
@@ -89,7 +103,13 @@ export function CreateBotModal() {
           {error && <div className="card__error">{error}</div>}
         </div>
         <div className="modal__footer">
-          <button type="button" className="link-btn link-btn--small" style={{ marginRight: 'auto' }} onClick={() => setModal('group')}>New group chat instead</button>
+          <span style={{ marginRight: 'auto', display: 'flex', gap: 12 }}>
+            <button type="button" className="link-btn link-btn--small" onClick={() => setModal('group')}>New group chat instead</button>
+            <label className="link-btn link-btn--small" style={{ cursor: 'pointer' }}>
+              Import a bot card
+              <input type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCard(f); e.target.value = ''; }} />
+            </label>
+          </span>
           <button type="button" className="btn btn--secondary btn--sm" onClick={close}>Cancel</button>
           <button type="submit" className="btn btn--primary btn--sm" disabled={!canCreate}>{busy ? 'Creating…' : 'Create'}</button>
         </div>

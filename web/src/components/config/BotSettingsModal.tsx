@@ -188,6 +188,21 @@ function GeneralTab({ bot, onClose }: { bot: Bot; onClose: () => void }) {
         </div>
       </section>
 
+      {bot.kind !== 'room' && (
+        <section className="cfg-section">
+          <div className="cfg-section__label">Share</div>
+          <div className="cfg-card">
+            <div className="cfg-row">
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">Share {bot.name}</div>
+                <div className="cfg-row__sub">Saves a bot card with its look, role, instructions, soul and skills. Send it to a friend; they import it under New Bot. Chats and memories stay with you.</div>
+              </div>
+              <a className="cfg-btn cfg-btn--secondary" href={`/api/bots/${bot.id}/card`} download>Save card</a>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="cfg-section">
         <div className="cfg-section__label">Danger zone</div>
         <div className="cfg-card">

@@ -9,11 +9,16 @@ interface YakkAndroid {
   openAppSettings(): void;
   requestBattery(): void;
   restartServer(): void;
+  /** Ask Android for a permission group: sms, calls, contacts, calendar, location, notifications, or all. */
+  grant?(group: string): void;
+  setLan?(on: boolean): void;
+  passphrase?(): string;
 }
 
 export interface AndroidInfo {
   version?: string; device?: string; android?: number;
-  screenControl?: boolean; notifications?: boolean; termuxPermission?: boolean; unrestrictedBattery?: boolean;
+  screenControl?: boolean; notifications?: boolean; unrestrictedBattery?: boolean;
+  permissions?: Record<string, boolean>; lan?: boolean;
 }
 
 export const android: YakkAndroid | undefined = (window as unknown as { YakkAndroid?: YakkAndroid }).YakkAndroid;

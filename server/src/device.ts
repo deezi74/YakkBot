@@ -34,7 +34,33 @@ export function pair(port: number, token: string, info: unknown) {
   seen = { at: 0, ok: false };
 }
 
+/** Inside the YakkBot Android app the server is started with the bridge's port and token: pair at once. */
+export function pairFromEnv() {
+  const port = Number(process.env.YAKK_BRIDGE_PORT ?? '');
+  const token = process.env.YAKK_BRIDGE_TOKEN ?? '';
+  if (!port || !token) return;
+  try {
+    pair(port, token, { via: 'app' });
+    console.log(`[device] paired with the YakkBot app on port ${port}`);
+  } catch (e: any) {
+    console.warn('[device] could not pair from the environment:', e?.message ?? e);
+  }
+}
+
+/** The app can also do the phone's own jobs (texts, calls, contacts...) when it reports so. */
+let phoneCaps: { at: number; on: boolean } = { at: 0, on: false };
+export function bridgePhone(): boolean {
+  if (!pairing()) return false;
+  if (process.env.YAKK_BRIDGE_TOKEN) return true;
+  if (Date.now() - phoneCaps.at > 60_000) {
+    phoneCaps.at = Date.now();
+    void bridge('/status', {}, 2500).then((s) => { phoneCaps = { at: Date.now(), on: !!s?.phone }; }).catch(() => {});
+  }
+  return phoneCaps.on;
+}
+
 export function unpair() {
+  phoneCaps = { at: 0, on: false };
   db.prepare('DELETE FROM device_bridge WHERE id=1').run();
   seen = { at: 0, ok: false };
 }
@@ -78,7 +104,9 @@ export async function bridgeStatus(): Promise<{ paired: boolean; reachable: bool
   const p = pairing();
   if (!p) return { paired: false, reachable: false, info: null };
   try {
-    return { paired: true, reachable: true, info: await bridge('/status', {}, 2500) };
+    const info = await bridge('/status', {}, 2500);
+    phoneCaps = { at: Date.now(), on: !!info?.phone };
+    return { paired: true, reachable: true, info };
   } catch {
     return { paired: true, reachable: false, info: p.info };
   }

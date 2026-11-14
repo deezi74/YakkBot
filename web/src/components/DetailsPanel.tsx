@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { VoiceSettings } from './VoiceSettings';
 import { ComputerScreen, type ScreenMode } from './ComputerViewer';
 import { EngineSettings } from './EngineSettings';
+import { GetComputer } from './GetComputer';
 import { MembersCard } from './MembersCard';
 import { useConfigUI } from '../configStore';
 import { Glyph } from './config/glyphs';
@@ -78,6 +79,7 @@ export function DetailsPanel() {
             <BotAvatarFor bot={bot} size={64} />
             <div className="details__name" title={displayName(bot)}>{displayName(bot)}</div>
             {bot.kind !== 'room' && <div className="details__who-sub">{bot.model ?? (f.phone ? 'Lives on this phone' : 'Lives on this device')}</div>}
+            {bot.kind !== 'room' && <GetComputer bot={bot} />}
           </div>
         ) : (
           <div className="details__hero">

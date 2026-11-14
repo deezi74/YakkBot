@@ -10,12 +10,14 @@ import { computerStatusText } from '../DetailsPanel';
 import { Icon } from '../Icon';
 import { ToolkitLogo } from '../ToolkitLogo';
 import { Glyph } from './glyphs';
+import { PhoneModels } from './PhoneModels';
 import { android, androidInfo, pairAndroid, type AndroidInfo } from '../../lib/android';
 import { ConfirmButton } from './ui';
 
 const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'general', label: 'General' },
   { id: 'phone', label: 'Phone control' },
+  { id: 'models', label: 'On-device models' },
   { id: 'computer', label: 'Computer' },
   { id: 'permissions', label: 'Permissions' },
   { id: 'apps', label: 'Connected apps' },
@@ -25,7 +27,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
 /** Full-window settings page, opened from the account menu. */
 export function AppSettings() {
   const f = useFeatures();
-  const sections = SECTIONS.filter((s) => (s.id === 'computer' ? f.computer === 'orgo' : s.id === 'apps' ? f.apps : s.id === 'phone' ? f.phone || !!android : true));
+  const sections = SECTIONS.filter((s) => (s.id === 'computer' ? f.computer === 'orgo' : s.id === 'apps' ? f.apps : s.id === 'phone' ? f.phone || !!android : s.id === 'models' ? f.models : true));
   const section = useConfigUI((s) => s.appSettings);
   const close = useConfigUI((s) => s.closeAppSettings);
   const open = useConfigUI((s) => s.openAppSettings);
@@ -51,6 +53,7 @@ export function AppSettings() {
         <div className="app-settings__page">
           {section === 'general' && <GeneralSection />}
           {section === 'phone' && <PhoneSection />}
+          {section === 'models' && <PhoneModels />}
           {section === 'computer' && <ComputerSection />}
           {section === 'permissions' && <PermissionsSection />}
           {section === 'apps' && <AppsSection />}
@@ -264,6 +267,45 @@ function AppsSection() {
 
 const APK_URL = 'https://github.com/deezi74/YakkBot/releases/latest/download/yakkbot.apk';
 
+const PERMISSION_ROWS = [
+  { key: 'sms', title: 'Texts', on: 'Bots can send and read texts (they ask you first).', off: 'Off. Bots cannot send or read texts.' },
+  { key: 'calls', title: 'Calls', on: 'Bots can place calls and read your call history.', off: 'Off. Bots can only open the dialer.' },
+  { key: 'contacts', title: 'Contacts', on: 'Bots can look people up by name.', off: 'Off. Bots need a number to text or call.' },
+  { key: 'calendar', title: 'Calendar', on: 'Bots can read and add events.', off: 'Off.' },
+  { key: 'location', title: 'Location', on: 'Bots can tell where the phone is.', off: 'Off.' },
+  { key: 'notifications', title: 'Notifications from bots', on: 'Bots can notify you when they finish.', off: 'Off. Bots cannot notify you.' },
+];
+
+/** Use YakkBot from a PC on the same Wi-Fi: the phone stays the server. */
+function PcAccess({ lan }: { lan: boolean }) {
+  const [on, setOn] = useState(lan);
+  const [pass, setPass] = useState('');
+  return (
+    <section className="cfg-section">
+      <div className="cfg-section__label">Use it from your PC</div>
+      <div className="cfg-card">
+        <div className="cfg-row">
+          <div className="cfg-row__text">
+            <div className="cfg-row__title">Open to your Wi-Fi</div>
+            <div className="cfg-row__sub">{on ? 'On your PC, open http://<this phone’s Wi-Fi address>:8787 and sign in with the passphrase.' : 'Only this phone can open YakkBot.'}</div>
+          </div>
+          <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => { const next = !on; setOn(next); android?.setLan?.(next); }}>{on ? 'Turn off' : 'Turn on'}</button>
+        </div>
+        {on && (
+          <div className="cfg-row">
+            <div className="cfg-row__text">
+              <div className="cfg-row__title">Passphrase</div>
+              <div className="cfg-row__sub"><code>{pass || '••••••••••••••••'}</code></div>
+            </div>
+            <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => setPass(pass ? '' : android?.passphrase?.() ?? '')}>{pass ? 'Hide' : 'Show'}</button>
+          </div>
+        )}
+      </div>
+      <div className="cfg-field__hint">Only turn this on at home. Anyone on the same Wi-Fi who has the passphrase can use your bots.</div>
+    </section>
+  );
+}
+
 /** The Android app's bridge: what the bots may do on the phone itself, and the switches for it. */
 function PhoneSection() {
   const [state, setState] = useState<{ paired: boolean; reachable: boolean } | null>(null);
@@ -303,13 +345,18 @@ function PhoneSection() {
             <>
               <Row on={info?.screenControl} title="Screen control" sub={info?.screenControl ? 'Bots can read the screen and tap, swipe and type.' : 'Off. Turn on “YakkBot phone control” in Accessibility settings.'} action={android && !info?.screenControl ? 'Turn on' : undefined} onAction={() => android?.openAccessibilitySettings()} />
               <Row on={info?.notifications} title="Notifications" sub={info?.notifications ? 'Bots can read and clear notifications.' : 'Off. Allow YakkBot in notification access.'} action={android && !info?.notifications ? 'Turn on' : undefined} onAction={() => android?.openNotificationSettings()} />
-              <Row on={info?.termuxPermission} title="Start YakkBot from the app" sub={info?.termuxPermission ? 'The app starts the server in Termux when you open it and after a restart.' : 'Off. Allow “Run commands in Termux” in the app’s permissions.'} action={android && !info?.termuxPermission ? 'App info' : undefined} onAction={() => android?.openAppSettings()} />
+              {PERMISSION_ROWS.map((p) => {
+                const on = info?.permissions?.[p.key];
+                if (on === undefined) return null;
+                return <Row key={p.key} on={on} title={p.title} sub={on ? p.on : p.off} action={android && !on ? 'Allow' : undefined} onAction={() => android?.grant?.(p.key)} />;
+              })}
               <Row on={info?.unrestrictedBattery} title="Runs in the background" sub={info?.unrestrictedBattery ? 'Android will not put the app to sleep.' : 'Android may stop the app when it is in the background.'} action={android && !info?.unrestrictedBattery ? 'Allow' : undefined} onAction={() => android?.requestBattery()} />
             </>
           )}
         </div>
-        <div className="cfg-field__hint">What each bot was allowed to do is listed under Permissions, where you can take it back. Texts, calls, contacts, location and the camera go through the Termux:API app instead.</div>
+        <div className="cfg-field__hint">Bots still ask you before they text, call, read your messages or touch the screen. What you said “Always allow” to is listed under Permissions, where you can take it back.</div>
       </section>
+      {android?.setLan && <PcAccess lan={!!info?.lan} />}
     </>
   );
 }
