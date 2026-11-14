@@ -31,6 +31,8 @@ interface State {
   viewerMode: 'watch' | 'control';
   /** One line shown under the large computer view while the person is driving (e.g. a sign-in to finish). */
   viewerHint: string | null;
+  /** Every bot's screen side by side. */
+  teamComputerOpen: boolean;
   /** Narrow screens show one pane at a time: the list of bots, or the open chat. */
   mobilePane: 'list' | 'chat';
 
@@ -72,6 +74,7 @@ export const useStore = create<State>((set, get) => ({
   viewerOpen: false,
   viewerMode: 'watch',
   viewerHint: null,
+  teamComputerOpen: false,
   mobilePane: 'list',
 
   async checkAuth() {

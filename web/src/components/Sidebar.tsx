@@ -81,6 +81,12 @@ export function Sidebar() {
 
       <div className="sidebar__scroll">
         <TasksIsland />
+        {f.computer !== 'none' && (
+          <button type="button" className="team-computer-link" onClick={() => set({ teamComputerOpen: true })}>
+            <Icon name="monitor" size={16} />
+            <span>Team computer</span>
+          </button>
+        )}
         {primary && (
           <div className="pinned">
             <button type="button" className={`pinned__tile${selectedBotId === primary.id ? ' is-selected' : ''}`} onClick={() => selectBot(primary.id)} title={displayName(primary)}>

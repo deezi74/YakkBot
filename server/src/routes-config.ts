@@ -6,7 +6,8 @@ import { hub } from './lib/hub.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
-import { env } from './env.js';
+import { env, getAppSettings, setAppSettings } from './env.js';
+import { jobStatus, startJob, type JobId } from './setupJobs.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
 import { computerState, readyScreen, resetBotScreen } from './computer.js';
 import { box } from './box.js';
@@ -29,7 +30,7 @@ import type { LibraryFile, Skill } from './types.js';
  */
 export const configApi = new Hono<AuthVars>();
 
-for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*']) configApi.use(p, requireUser);
+for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*', '/setup/*']) configApi.use(p, requireUser);
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
@@ -238,7 +239,7 @@ configApi.get('/bots/:id/files', async (c) => {
   const rel = safeRel(c.req.query('path'));
   if (rel === null) return c.json({ error: 'bad path' }, 400);
   try {
-    if (box.local) {
+    if (box.local || env.engine === 'native') {
       const root = path.join(LIB_ROOT, b.id);
       fs.mkdirSync(root, { recursive: true });
       const dirPath = path.join(root, rel);
@@ -270,7 +271,7 @@ configApi.post('/bots/:id/files/download', async (c) => {
   const rel = safeRel(path);
   if (!rel) return c.json({ error: 'bad path' }, 400);
   // On the computer itself the file is on our own disk: serve it directly.
-  if (box.local) return c.json({ url: `/api/bots/${b.id}/files/raw?path=${encodeURIComponent(rel)}` });
+  if (box.local || env.engine === 'native') return c.json({ url: `/api/bots/${b.id}/files/raw?path=${encodeURIComponent(rel)}` });
   try {
     if (!env.orgoComputerId) return c.json({ error: 'computer unavailable' }, 409);
     const r: any = await orgo.exportFile(env.orgoComputerId, `${LIB_ROOT}/${b.id}/${rel}`);
@@ -284,7 +285,7 @@ configApi.post('/bots/:id/files/download', async (c) => {
 
 configApi.get('/bots/:id/files/raw', (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
-  if (!b || !box.local) return c.json({ error: 'not found' }, 404);
+  if (!b || !(box.local || env.engine === 'native')) return c.json({ error: 'not found' }, 404);
   const rel = safeRel(c.req.query('path'));
   if (!rel) return c.json({ error: 'bad path' }, 400);
   const root = `${LIB_ROOT}/${b.id}`;
@@ -448,3 +449,94 @@ configApi.post('/phone-models/:action', async (c) => {
 
 configApi.get('/desktop', (c) => viaApp(c, '/desktop/status'));
 configApi.post('/desktop/install', (c) => viaApp(c, '/desktop/install'));
+
+// One-tap setup for YakkBot in Termux or on Linux (the app does its own through the bridge).
+const JOB_IDS = new Set(['engine', 'desktop']);
+configApi.get('/setup/:job', (c) => {
+  const id = c.req.param('job');
+  if (!JOB_IDS.has(id)) return c.json({ error: 'not found' }, 404);
+  return c.json(jobStatus(id as JobId));
+});
+configApi.post('/setup/:job', (c) => {
+  const id = c.req.param('job');
+  if (!JOB_IDS.has(id)) return c.json({ error: 'not found' }, 404);
+  try { return c.json(startJob(id as JobId)); } catch (e: any) { return c.json({ error: String(e?.message ?? e) }, 400); }
+});
+
+// ---------- the bots' computer: chosen and set up in the app ----------
+// One Orgo cloud computer for the whole team, a screen of its own for each bot (Orgo allows 4),
+// or the desktop in the YakkBot app's own Linux.
+
+configApi.get('/computer/setup', (c) => {
+  const s = getAppSettings();
+  return c.json({
+    mode: env.computerMode,
+    maxBots: env.maxBots,
+    orgo: { hasKey: !!env.orgoKey, computerId: s.orgoComputerId ?? (env.computerMode === 'orgo' ? env.orgoComputerId : ''), computerName: s.orgoComputerName ?? '' },
+    local: { available: env.vncPort > 0, app: env.inApp, termux: env.isTermux },
+  });
+});
+
+/** Check an Orgo API key and list the computers it can reach. The key is saved only if it works. */
+configApi.post('/computer/orgo/key', async (c) => {
+  const { key } = await c.req.json<{ key?: string }>().catch(() => ({} as { key?: string }));
+  const k = String(key ?? '').trim() || env.orgoKey;
+  if (!k) return c.json({ error: 'Paste your Orgo API key (Orgo > Settings > API keys).' }, 400);
+  try {
+    const r = await orgo.workspaces(k);
+    const list: any[] = Array.isArray(r) ? r : r?.workspaces ?? r?.data ?? [];
+    if (key) setAppSettings({ orgoKey: k });
+    return c.json({
+      workspaces: list.map((w) => ({
+        id: String(w.id), name: String(w.name ?? 'Workspace'),
+        computers: (w.desktops ?? w.computers ?? []).filter((d: any) => (d.os ?? 'linux') === 'linux').map((d: any) => ({ id: String(d.id), name: String(d.name ?? d.id), status: String(d.status ?? '') })),
+      })),
+    });
+  } catch (e: any) {
+    return c.json({ error: e?.status === 401 || e?.status === 403 ? 'Orgo did not accept that key.' : String(e?.message ?? e) }, 400);
+  }
+});
+
+configApi.post('/computer/orgo/use', async (c) => {
+  const { computerId, name } = await c.req.json<{ computerId?: string; name?: string }>().catch(() => ({} as any));
+  if (!env.orgoKey) return c.json({ error: 'Add your Orgo API key first.' }, 400);
+  if (!/^[\w-]{8,64}$/.test(String(computerId ?? ''))) return c.json({ error: 'Pick a computer.' }, 400);
+  setAppSettings({ computer: 'orgo', orgoComputerId: computerId, orgoComputerName: String(name ?? '').slice(0, 80) });
+  // Screens leased on another computer mean nothing on this one.
+  db.prepare('DELETE FROM screens').run();
+  hub.emit(c.get('user').id, { type: 'computer', state: computerState(c.get('user').id) });
+  return c.json({ ok: true, mode: env.computerMode });
+});
+
+/** A new computer for the team: Orgo's Large size (4 cores, 16 GB), room for four bots with a browser each. */
+configApi.post('/computer/orgo/create', async (c) => {
+  const { workspaceId } = await c.req.json<{ workspaceId?: string }>().catch(() => ({} as any));
+  if (!env.orgoKey) return c.json({ error: 'Add your Orgo API key first.' }, 400);
+  if (!workspaceId) return c.json({ error: 'Pick a workspace.' }, 400);
+  try {
+    const name = 'YakkBot';
+    const comp = await orgo.createComputer({ workspace_id: String(workspaceId), name, cpu: 4, ram: 16 });
+    setAppSettings({ computer: 'orgo', orgoComputerId: comp.id, orgoComputerName: name });
+    db.prepare('DELETE FROM screens').run();
+    hub.emit(c.get('user').id, { type: 'computer', state: computerState(c.get('user').id) });
+    return c.json({ ok: true, computerId: comp.id });
+  } catch (e: any) {
+    return c.json({ error: String(e?.message ?? e) }, 400);
+  }
+});
+
+configApi.post('/computer/mode', async (c) => {
+  const { mode } = await c.req.json<{ mode?: string }>().catch(() => ({} as any));
+  if (mode !== 'none' && mode !== 'local' && mode !== 'orgo') return c.json({ error: 'unknown mode' }, 400);
+  if (mode === 'orgo' && !(env.orgoKey && getAppSettings().orgoComputerId)) return c.json({ error: 'Set up the Orgo computer first.' }, 400);
+  setAppSettings({ computer: mode });
+  hub.emit(c.get('user').id, { type: 'computer', state: computerState(c.get('user').id) });
+  return c.json({ ok: true, mode: env.computerMode });
+});
+
+configApi.post('/computer/orgo/forget', (c) => {
+  setAppSettings({ orgoKey: undefined, orgoComputerId: undefined, orgoComputerName: undefined, computer: getAppSettings().computer === 'orgo' ? undefined : getAppSettings().computer });
+  db.prepare('DELETE FROM screens').run();
+  hub.emit(c.get('user').id, { type: 'computer', state: computerState(c.get('user').id) });
+  return c.json({ ok: true, mode: env.computerMode });
+});

@@ -6,11 +6,13 @@ import { api } from '../lib/api';
 import { botVars } from '../lib/colors';
 import { computerStatusText, screenSize, screensFull } from '../lib/computer';
 import { configApi } from '../lib/configApi';
+import { activityStatus } from '../lib/phrases';
 import { useSelectedBot, useStore } from '../store';
 import { Icon } from './Icon';
 
 export type ScreenMode = 'watch' | 'control';
 type Conn = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
+const POINTER_VERB: Record<string, string> = { click: 'clicking', double_click: 'double-clicking', move: 'pointing', drag: 'dragging', scroll: 'scrolling', type: 'typing' };
 type Phase = 'live' | 'switching' | 'waking' | 'asleep' | 'idle' | 'paused' | 'error';
 
 interface ScreenProps {
@@ -58,6 +60,10 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
   const hasScreen = !!computer?.screens.some((s) => s.botId === bot.id);
   const { width, height } = screenSize(computer, bot.id, bot.isPrimary);
   const driving = mode === 'control';
+  const live = useStore((s) => s.live[bot.id]);
+  // The frame's caption: what the bot is up to, in a few words. The cursor label follows its last pointing action.
+  const doing = live?.isRunning ? activityStatus(live, []) : live?.awaiting ? 'Needs you' : 'Idle';
+  const cursor = live?.isRunning && live.cursor && Date.now() - live.cursor.at < 60_000 ? live.cursor : null;
   const large = variant === 'stage' || fullscreen;
   // The small panel view only streams a screen that already exists, so browsing bots never uses up screens.
   const wantLive = running && !paused && (variant === 'stage' || visible) && (opened || hasScreen);
@@ -187,6 +193,17 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
       <div className="screen__body">
         <div className="screen__view" style={{ aspectRatio: `${width} / ${height}` }}>
           <div ref={canvasRef} className="screen__canvas" />
+          {phase === 'live' && !driving && cursor && (
+            <span
+              key={cursor.at}
+              className="screen__cursor"
+              style={{ left: `${Math.min(100, (cursor.x / width) * 100)}%`, top: `${Math.min(100, (cursor.y / height) * 100)}%` }}
+              aria-hidden
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M4 2.5 19.5 12l-7 1.6L9 20.5Z" /></svg>
+              <span className="screen__cursor-label">{bot.name} is {POINTER_VERB[cursor.action] ?? 'working'}</span>
+            </span>
+          )}
           {/* noVNC swallows clicks on its canvas, so the way into the large view is a button laid over it. */}
           {expandable && <button type="button" className="screen__expand" onClick={() => onExpand?.('watch')} aria-label={`Open ${bot.name}’s computer in the large view`} title="Open the large view" />}
 
@@ -270,6 +287,15 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
             </div>
           )}
         </div>
+
+        {!driving && (
+          <div className="screen__caption">
+            <BotAvatarFor bot={bot} size={18} />
+            <span className="screen__caption-name">{bot.name}</span>
+            <span className="screen__caption-dot" aria-hidden>·</span>
+            <span className={`screen__caption-doing${live?.isRunning ? ' is-busy' : ''}`}>{doing}</span>
+          </div>
+        )}
 
         {driving && (
           <div className="screen__chin">

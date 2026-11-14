@@ -445,7 +445,9 @@ async function runTurn(botId: string, trigger: Trigger) {
             const kind: ActivityKind = name === 'send_to_bot' ? 'messaging_named' : act.kind;
             const detail = name === 'send_to_bot' ? String(args?.bot_name ?? '') || undefined : act.detail;
             // A call that is waiting for the user keeps its "waiting for you" state.
-            if (!getLive(botId).awaiting) setLive(botId, { isRunning: true, activity: { kind, detail, since: now() }, steps, caption: null });
+            const pointed = name.endsWith('screen') && Number.isFinite(Number(args?.x)) && Number.isFinite(Number(args?.y))
+              ? { cursor: { x: Number(args.x), y: Number(args.y), action: String(args.action ?? 'click'), at: now() } } : {};
+            if (!getLive(botId).awaiting) setLive(botId, { isRunning: true, activity: { kind, detail, since: now() }, steps, caption: null, ...pointed });
             else setLive(botId, { steps });
             reasoning = '';
             if (ours && name.startsWith('COMPOSIO_')) {

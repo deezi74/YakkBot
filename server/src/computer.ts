@@ -22,7 +22,6 @@ import type { ComputerState } from './types.js';
 export type { BotScreen } from './computer-orgo.js';
 import type { BotScreen } from './computer-orgo.js';
 
-const mode = env.computerMode;
 const LOCAL_SCREEN = 'default';
 
 const agentBots = (userId: string) => (db.prepare("SELECT id FROM bots WHERE user_id=? AND COALESCE(kind,'agent')<>'room' AND COALESCE(hidden,0)=0").all(userId) as any[]).map((b) => b.id as string);
@@ -103,20 +102,20 @@ export async function localScreenshot(): Promise<{ data: Buffer; mime: string } 
 // ---------- the facade ----------
 
 export function computerState(userId: string): ComputerState {
-  if (mode === 'orgo') return orgoComputer.computerState(userId);
-  if (mode === 'local') return localState(userId);
+  if (env.computerMode === 'orgo') return orgoComputer.computerState(userId);
+  if (env.computerMode === 'local') return localState(userId);
   return { status: 'absent', orgoId: null, error: null, screens: [], maxScreens: 0 };
 }
 
 export async function refreshComputer(userId: string): Promise<ComputerState> {
-  if (mode === 'orgo') return orgoComputer.refreshComputer(userId);
-  if (mode === 'local') { localUp.at = 0; await localAlive(); }
+  if (env.computerMode === 'orgo') return orgoComputer.refreshComputer(userId);
+  if (env.computerMode === 'local') { localUp.at = 0; await localAlive(); }
   return computerState(userId);
 }
 
 export async function ensureComputer(userId: string): Promise<string> {
-  if (mode === 'orgo') return orgoComputer.ensureComputer(userId);
-  if (mode === 'local') {
+  if (env.computerMode === 'orgo') return orgoComputer.ensureComputer(userId);
+  if (env.computerMode === 'local') {
     const was = localUp.ok;
     localUp.at = 0;
     if ((await localAlive()) !== was) hub.emit(userId, { type: 'computer', state: computerState(userId) });
@@ -127,37 +126,37 @@ export async function ensureComputer(userId: string): Promise<string> {
 }
 
 export async function screenFor(userId: string, botId: string): Promise<BotScreen> {
-  if (mode === 'orgo') return orgoComputer.screenFor(userId, botId);
+  if (env.computerMode === 'orgo') return orgoComputer.screenFor(userId, botId);
   await ensureComputer(userId);
   return { computerId: 'local', screenId: LOCAL_SCREEN, ...(localSize ?? {}) };
 }
 
 export async function readyScreen(userId: string, botId: string, opts: { redress?: boolean } = {}): Promise<BotScreen> {
-  if (mode === 'orgo') return orgoComputer.readyScreen(userId, botId, opts);
+  if (env.computerMode === 'orgo') return orgoComputer.readyScreen(userId, botId, opts);
   return screenFor(userId, botId);
 }
 
 export function cdpUrlFor(botId: string, screenId: string): string {
-  return mode === 'orgo' ? orgoComputer.cdpUrlFor(botId, screenId) : '';
+  return env.computerMode === 'orgo' ? orgoComputer.cdpUrlFor(botId, screenId) : '';
 }
 
 export async function screenForWork(userId: string, botId: string): Promise<void> {
-  if (mode === 'orgo') return orgoComputer.screenForWork(userId, botId);
+  if (env.computerMode === 'orgo') return orgoComputer.screenForWork(userId, botId);
 }
 
 export async function resetBotScreen(userId: string, botId: string): Promise<void> {
-  if (mode === 'orgo') return orgoComputer.resetBotScreen(userId, botId);
+  if (env.computerMode === 'orgo') return orgoComputer.resetBotScreen(userId, botId);
   throw new Error('Resetting the screen is only available with an Orgo computer.');
 }
 
 export async function releaseScreen(botId: string): Promise<void> {
-  if (mode === 'orgo') return orgoComputer.releaseScreen(botId);
+  if (env.computerMode === 'orgo') return orgoComputer.releaseScreen(botId);
 }
 
 /** A deleted bot leaves nothing behind: its Library folder (and, on Orgo, its browser profile) go. */
 export async function forgetBotFiles(botId: string): Promise<void> {
   if (!/^(bot|sub)_[\w-]+$/.test(botId)) return;
-  if (mode === 'orgo') return orgoComputer.forgetBotFiles(botId);
+  if (env.computerMode === 'orgo') return orgoComputer.forgetBotFiles(botId);
   const dir = path.join(env.libraryRoot, botId);
   if (path.resolve(dir).startsWith(path.resolve(env.libraryRoot) + path.sep)) fs.rmSync(dir, { recursive: true, force: true });
 }
@@ -165,5 +164,5 @@ export async function forgetBotFiles(botId: string): Promise<void> {
 export async function suspendComputer(_userId: string, _reason = 'manual'): Promise<void> {}
 
 /** Whether the bots can see and drive a desktop from here (local mode on this device). */
-export const hasLocalDesktop = () => mode === 'local';
+export const hasLocalDesktop = () => env.computerMode === 'local';
 export const localDesktopAlive = localAlive;

@@ -13,6 +13,7 @@ import { Glyph } from './glyphs';
 import { PhoneModels } from './PhoneModels';
 import { android, androidInfo, pairAndroid, type AndroidInfo } from '../../lib/android';
 import { ConfirmButton } from './ui';
+import { ComputerSetupCard } from './ComputerSetup';
 
 const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'general', label: 'General' },
@@ -27,7 +28,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
 /** Full-window settings page, opened from the account menu. */
 export function AppSettings() {
   const f = useFeatures();
-  const sections = SECTIONS.filter((s) => (s.id === 'computer' ? f.computer === 'orgo' : s.id === 'apps' ? f.apps : s.id === 'phone' ? f.phone || !!android : s.id === 'models' ? f.models : true));
+  const sections = SECTIONS.filter((s) => (s.id === 'computer' ? true : s.id === 'apps' ? f.apps : s.id === 'phone' ? f.phone || !!android : s.id === 'models' ? f.models : true));
   const section = useConfigUI((s) => s.appSettings);
   const close = useConfigUI((s) => s.closeAppSettings);
   const open = useConfigUI((s) => s.openAppSettings);
@@ -112,6 +113,7 @@ function GeneralSection() {
 const screenLabel = (id: string) => (id === 'default' ? 'Main screen' : `Screen ${Number(id.replace('screen-', '')) - 98 || id}`);
 
 function ComputerSection() {
+  const f = useFeatures();
   const computer = useStore((s) => s.computer);
   const bots = useStore((s) => s.bots);
   const [details, setDetails] = useState<ComputerDetails | null>(null);
@@ -135,7 +137,9 @@ function ComputerSection() {
 
   return (
     <>
-      <PageHead title="Computer" sub="Your Bots share one cloud computer. Each Bot works on its own screen." />
+      <PageHead title="Computer" sub="Your Bots share one computer. Each Bot works on its own screen, which you can watch live or take over." />
+      <ComputerSetupCard />
+      {f.computer === 'none' ? null : <>
       <section className="cfg-section">
         <div className="cfg-card">
           <div className="cfg-row">
@@ -186,6 +190,7 @@ function ComputerSection() {
         </div>
         <div className="cfg-field__hint">Reset closes every window on that Bot’s screen, so it starts clean next time.{maxScreens ? ` Up to ${maxScreens} Bots can have a screen at once${details && details.screens.length >= maxScreens ? '; reset one to free it for another Bot' : ''}.` : ''}</div>
       </section>
+      </>}
     </>
   );
 }

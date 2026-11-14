@@ -78,3 +78,9 @@
   .signin { align-items: stretch; background: var(--color-bg-chrome); }
   .signin__card { width: 100%; max-width: 100%; justify-content: center; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 }
+
+.team-computer-link {
+  display: flex; align-items: center; gap: 10px; width: calc(100% - 16px); margin: 4px 8px; padding: 8px 10px; border-radius: 10px;
+  color: var(--color-ink); font-size: 14px; font-weight: 500; text-align: left;
+}
+.team-computer-link:hover { background: var(--color-bg-hover, #0000000d); }

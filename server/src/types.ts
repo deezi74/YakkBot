@@ -160,6 +160,8 @@ export interface LiveState {
   caption?: string | null;
   /** Tool calls made so far in the current turn. */
   steps?: number;
+  /** Where the bot last pointed on its screen, and what it was doing there. */
+  cursor?: { x: number; y: number; action: string; at: number } | null;
 }
 
 export interface Routine {

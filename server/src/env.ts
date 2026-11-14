@@ -57,16 +57,39 @@ const isTermux = !!process.env.TERMUX_VERSION || (process.env.PREFIX ?? '').incl
 /** Running inside the YakkBot Android app's own Linux. */
 const inApp = process.env.YAKK_PLATFORM === 'android-app';
 const hermesHome = str('HERMES_HOME_PRIMARY', path.join(os.homedir(), '.hermes'));
-const orgoComputerId = str('ORGO_COMPUTER_ID');
 const vncPort = Number(str('VNC_PORT', '0'));
 
+// ---------- settings made in the app (Settings > Computer) ----------
+// Kept in <YAKK_HOME>/settings.json (mode 600) so they apply without editing .env or restarting.
+
+interface AppSettings { computer?: 'none' | 'local' | 'orgo'; orgoKey?: string; orgoComputerId?: string; orgoComputerName?: string }
+const settingsFile = path.join(dataDir, 'settings.json');
+let appSettings: AppSettings = {};
+try { appSettings = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch { /* none yet */ }
+
+export function getAppSettings(): AppSettings { return { ...appSettings }; }
+export function setAppSettings(patch: AppSettings) {
+  appSettings = { ...appSettings, ...patch };
+  for (const k of Object.keys(appSettings) as (keyof AppSettings)[]) if (appSettings[k] === undefined || appSettings[k] === '') delete appSettings[k];
+  fs.writeFileSync(settingsFile, JSON.stringify(appSettings, null, 2), { mode: 0o600 });
+  fs.chmodSync(settingsFile, 0o600);
+}
+
+const orgoComputerIdEnv = str('ORGO_COMPUTER_ID');
+
 export type ComputerMode = 'none' | 'local' | 'orgo';
-const computerMode: ComputerMode = ((): ComputerMode => {
+/** Which computer the bots use. A choice made in the app wins over the environment. */
+function computerMode(): ComputerMode {
+  const chosen = appSettings.computer;
+  if (chosen === 'orgo' && appSettings.orgoKey && appSettings.orgoComputerId) return 'orgo';
+  if (chosen === 'none') return 'none';
+  if (chosen === 'local' && vncPort) return 'local';
   const v = str('YAKK_COMPUTER').toLowerCase();
   if (v === 'none' || v === 'local' || v === 'orgo') return v;
-  if (orgoComputerId) return 'orgo';
+  if (orgoComputerIdEnv) return 'orgo';
   return vncPort ? 'local' : 'none';
-})();
+}
+const serverOnOrgo = flag('HQ_LOCAL') && !!orgoComputerIdEnv;
 
 export const env = {
   port,
@@ -81,7 +104,7 @@ export const env = {
   sessionSecret: sessionSecret(),
   dbPath: str('DB_PATH', path.join(dataDir, 'yakkbot.db')),
   /** Where each bot's Library (the files it makes for you) lives: <root>/<botId>/. */
-  libraryRoot: path.resolve(str('LIBRARY_ROOT', computerMode === 'orgo' ? '/root/yakkbot/files' : path.join(dataDir, 'files'))),
+  libraryRoot: path.resolve(str('LIBRARY_ROOT', serverOnOrgo ? '/root/yakkbot/files' : path.join(dataDir, 'files'))),
 
   // ---- sign-in ----
   /** Owner name and passphrase for the single-owner sign-in. An empty passphrase disables it. */
@@ -112,20 +135,22 @@ export const env = {
   extraMcpServers: str('EXTRA_MCP_SERVERS'),
   primaryBotName: str('PRIMARY_BOT_NAME', 'Yakk'),
   primaryBotLabel: str('PRIMARY_BOT_LABEL', 'Chief of Staff'),
-  maxBots: Number(str('MAX_BOTS', orgoComputerId ? '4' : '12')),
+  /** On an Orgo computer every bot has a screen of its own, and Orgo allows 4 screens per computer. */
+  get maxBots() { return Number(process.env.MAX_BOTS ?? (computerMode() === 'orgo' ? 4 : 12)); },
 
   // ---- the bots' computer ----
-  computerMode,
+  get computerMode() { return computerMode(); },
   /** local mode: a VNC server on this device (Termux XFCE, x11vnc, TigerVNC). */
   vncHost: str('VNC_HOST', '127.0.0.1'),
   vncPort,
   vncPassword: secret('VNC_PASSWORD'),
   /** local mode: the X display the bots act on (screenshots, xdotool). */
   display: str('YAKK_DISPLAY', vncPort >= 5900 && vncPort < 6000 ? `:${vncPort - 5900}` : ':0'),
-  orgoKey: secret('ORGO_API_KEY'),
-  orgoComputerId,
+  get orgoKey() { return appSettings.orgoKey || secret('ORGO_API_KEY'); },
+  get orgoComputerId() { return computerMode() === 'orgo' ? appSettings.orgoComputerId || orgoComputerIdEnv : ''; },
   /** orgo mode: this server runs on that computer, so shell commands run locally. */
-  localBox: computerMode === 'orgo' ? flag('HQ_LOCAL') : true,
+  /** Commands for the bots' computer run on this machine (the server runs on it), not through Orgo's API. */
+  get localBox() { return computerMode() === 'orgo' ? serverOnOrgo : true; },
   primaryCdpUrl: str('PRIMARY_CDP_URL'),
 
   // ---- add-ons ----
@@ -137,7 +162,7 @@ export const env = {
   telegramChats: str('TELEGRAM_ALLOWED_CHATS').split(',').map((s) => s.trim()).filter(Boolean),
 };
 
-if (env.computerMode !== 'orgo') fs.mkdirSync(env.libraryRoot, { recursive: true });
+if (!serverOnOrgo) fs.mkdirSync(env.libraryRoot, { recursive: true });
 
 export const features = () => ({
   engine: env.engine,

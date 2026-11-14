@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { db, now } from '../db.js';
 import { newId } from '../lib/ids.js';
 import { hub } from '../lib/hub.js';
@@ -101,7 +102,11 @@ export const TOOLS: ToolDef[] = [
     impl: async (a, ctx) => {
       const name = String(a.filename).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'file.txt';
       const file = `${LIBRARY_ROOT}/${ctx.botId}/${name}`;
-      await box.writeFile(file, String(a.content ?? ''));
+      // The built-in engine keeps each bot's Library on this device; a Hermes bot's lives on its computer.
+      if (env.engine === 'native') {
+        fs.mkdirSync(`${LIBRARY_ROOT}/${ctx.botId}`, { recursive: true });
+        fs.writeFileSync(file, String(a.content ?? ''));
+      } else await box.writeFile(file, String(a.content ?? ''));
       return { output: JSON.stringify({ ok: true, path: file }), summary: `Saved ${name}` };
     },
   },

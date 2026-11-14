@@ -193,6 +193,16 @@ async function run(wire) {
   await api('DELETE', `/bots/${third.id}`);
   await api('DELETE', '/device');
 
+  const setup = (await api('GET', '/computer/setup')).json;
+  check('the computer page reports where bots work', ['none', 'local', 'orgo'].includes(setup.mode) && setup.maxBots > 0, JSON.stringify(setup));
+  check('Orgo setup without a key asks for one', (await api('POST', '/computer/orgo/key', {})).status === 400);
+  check('Orgo cannot be chosen before it is set up', (await api('POST', '/computer/mode', { mode: 'orgo' })).status === 400);
+  check('switching to no computer works', (await api('POST', '/computer/mode', { mode: 'none' })).json.mode === 'none');
+  await api('POST', '/computer/orgo/forget', {});
+  const job = (await api('GET', '/setup/engine')).json;
+  check('the engine setup job reports its state', job.state === 'idle' && typeof job.available === 'boolean', JSON.stringify(job));
+  check('an unknown setup job is refused', (await api('POST', '/setup/rm-rf', {})).status === 404);
+
   const mcp = await fetch(`${base}/mcp/${bot.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
   check('MCP endpoint refuses a caller without the token', mcp.status === 401);
 

@@ -3,6 +3,7 @@ import { startEvents } from './lib/events';
 import { useStore } from './store';
 import { ChatView } from './components/ChatView';
 import { ComputerViewer } from './components/ComputerViewer';
+import { TeamComputer } from './components/TeamComputer';
 import { DetailsPanel } from './components/DetailsPanel';
 import { Sidebar } from './components/Sidebar';
 import { SignIn } from './components/SignIn';
@@ -19,6 +20,7 @@ function Shell() {
   const detailsOpen = useStore((s) => s.detailsOpen);
   const modal = useStore((s) => s.modal);
   const viewerOpen = useStore((s) => s.viewerOpen);
+  const teamComputerOpen = useStore((s) => s.teamComputerOpen);
   const collapsed = useStore((s) => s.sidebarCollapsed);
   const hasBot = useStore((s) => !!s.selectedBotId);
   const view = useConfigUI((s) => s.view);
@@ -67,6 +69,7 @@ function Shell() {
       {modal === 'group' && <CreateGroupModal />}
       {modal === 'search' && <SearchModal />}
       {modal === 'apps' && <ConnectAppsModal />}
+      {teamComputerOpen && !viewerOpen && <TeamComputer />}
       {viewerOpen && <ComputerViewer />}
       <ConfigLayer />
     </div>
