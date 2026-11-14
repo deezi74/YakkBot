@@ -17,6 +17,7 @@ import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine,
 import { MEMORY_LIMIT, USER_LIMIT, readHomeFile, writeHomeFile, type HomeFile } from './native/home.js';
 import { bridge, BridgeError, bridgeStatus, pair, unpair } from './device.js';
 import { forgetPhoneModels } from './native/providers.js';
+import { CATALOG, cancelDownload, deleteModel, hubFiles, localStatus, searchHub, startDownload, stopModel } from './native/localModels.js';
 import { PROVIDERS, listProviders, removeProviderKey, setProviderKey } from './native/providers.js';
 import { listMemories } from './engine-memory.js';
 import { idleConfig, viewerCount } from './idle.js';
@@ -418,13 +419,31 @@ const viaApp = async (c: any, path: string, body: Record<string, unknown> = {}, 
   }
 };
 
-configApi.get('/phone-models', (c) => viaApp(c, '/models/status'));
+// Inside the YakkBot app its own engine runs them; anywhere else (Termux, a PC) this server does, with llama-server.
+configApi.get('/phone-models', (c) => (env.inApp ? viaApp(c, '/models/status') : c.json(localStatus())));
 configApi.post('/phone-models/:action', async (c) => {
   const action = c.req.param('action');
   if (!['download', 'cancel', 'delete', 'search', 'files', 'stop'].includes(action)) return c.json({ error: 'unknown action' }, 404);
-  const body = await c.req.json().catch(() => ({}));
+  const body: any = await c.req.json().catch(() => ({}));
   forgetPhoneModels();
-  return viaApp(c, `/models/${action}`, body, action === 'search' || action === 'files' ? 45_000 : 30_000);
+  if (env.inApp) return viaApp(c, `/models/${action}`, body, action === 'search' || action === 'files' ? 45_000 : 30_000);
+  try {
+    switch (action) {
+      case 'download': {
+        const m = body.id ? CATALOG.find((x) => x.id === body.id) : null;
+        if (body.id && !m) return c.json({ error: 'No such model in the list.' }, 400);
+        startDownload(m ? `https://huggingface.co/${m.repo}/resolve/main/${m.file}` : String(body.url ?? ''), m ? m.file : String(body.file ?? ''));
+        return c.json({ ok: true });
+      }
+      case 'cancel': cancelDownload(String(body.file ?? '')); return c.json({ ok: true });
+      case 'delete': deleteModel(String(body.file ?? '')); return c.json({ ok: true });
+      case 'search': return c.json({ results: await searchHub(String(body.q ?? '')) });
+      case 'files': return c.json({ files: await hubFiles(String(body.repo ?? '')) });
+      default: stopModel(); return c.json({ ok: true });
+    }
+  } catch (e: any) {
+    return c.json({ error: String(e?.message ?? e) }, 400);
+  }
 });
 
 configApi.get('/desktop', (c) => viaApp(c, '/desktop/status'));

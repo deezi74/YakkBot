@@ -78,6 +78,7 @@ const server = http.createServer((req, res) => {
   let raw = '';
   req.on('data', (c) => (raw += c));
   req.on('end', () => {
+    if (req.method === 'GET' && req.url === '/health') { res.writeHead(200, { 'content-type': 'application/json' }); return res.end('{"status":"ok"}'); }
     if (req.method === 'GET' && req.url.endsWith('/models')) {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ data: [{ id: 'mock-1' }, { id: 'mock-2' }] }));

@@ -189,7 +189,7 @@ export function EngineSettings({ bot }: { bot: Bot }) {
       )}
       {phoneModels && (
         <div className="engine__key">
-          <div className="engine__hint">{selected?.connected ? 'Runs on this phone, offline. The first reply loads the model, which can take a minute.' : 'No model is downloaded yet.'}</div>
+          <div className="engine__hint">{selected?.connected ? 'Runs on this device, offline. The first reply loads the model, which can take a minute.' : 'No model is downloaded yet.'}</div>
           <div className="engine__actions">
             <button type="button" className="btn btn--sm btn--bot" onClick={() => useConfigUI.getState().openAppSettings('models')}>{selected?.connected ? 'Manage models' : 'Download a model'}</button>
           </div>
@@ -245,6 +245,9 @@ export function EngineSettings({ bot }: { bot: Bot }) {
           <i aria-hidden />
           {native ? `Built-in engine · ${engine.status === 'ready' ? 'ready' : 'needs a model'}` : `Hermes · profile ${engine.profile} · ${STATUS[engine.status] ?? engine.status}`}
         </span>
+        {native && (
+          <button type="button" className="link-btn link-btn--small" onClick={() => useConfigUI.getState().openAppSettings('models')}>Models on this device</button>
+        )}
         {!native && (engine.status === 'error' || engine.status === 'stopped') && (
           <button type="button" className="link-btn link-btn--small" onClick={restart} disabled={busy === 'restart'}>{busy === 'restart' ? 'Restarting…' : 'Restart agent'}</button>
         )}

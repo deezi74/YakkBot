@@ -2,6 +2,7 @@ import { db, now } from '../db.js';
 import { env } from '../env.js';
 import type { EngineProvider } from '../types.js';
 import { bridge, pairing } from '../device.js';
+import { engine as localEngine, installedModels } from './localModels.js';
 
 /**
  * Model providers for the built-in engine. Bring any model: Claude through the Anthropic API, or
@@ -38,7 +39,7 @@ export const PROVIDERS: ProviderDef[] = [
   { id: 'custom', name: 'Custom (OpenAI-compatible)', wire: 'openai', baseUrl: (process.env.CUSTOM_BASE_URL ?? process.env.OPENAI_BASE_URL ?? '').replace(/\/+$/, ''), envKey: 'CUSTOM_API_KEY', models: [] },
   // GGUF models downloaded to the phone and run by the YakkBot app (llama.cpp), offline.
   // Last, so a bot with no provider of its own only falls back to it when nothing else is set up.
-  { id: 'phone', name: 'On this phone (offline)', wire: 'openai', baseUrl: 'http://127.0.0.1:8081/v1', envKey: 'PHONE_MODEL_KEY', models: [], keyless: true },
+  { id: 'phone', name: 'On this device (offline)', wire: 'openai', baseUrl: `http://127.0.0.1:${process.env.YAKK_MODEL_PORT ?? 8081}/v1`, envKey: 'PHONE_MODEL_KEY', models: [], keyless: true },
 ];
 
 db.exec(`CREATE TABLE IF NOT EXISTS provider_keys (
@@ -138,10 +139,10 @@ export function defaultProvider(): string | null {
 
 export async function listProviders(): Promise<EngineProvider[]> {
   const out: EngineProvider[] = [];
-  if (pairing()) await phoneModels();
+  await phoneModels();
   for (const p of PROVIDERS) {
-    // On-phone models only exist inside the YakkBot app.
-    if (p.id === 'phone' && !pairing()) continue;
+    // On-device models: the app's engine, or llama-server here.
+    if (p.id === 'phone' && !(env.inApp ? pairing() : localEngine())) continue;
     const connected = providerConnected(p.id);
     out.push({
       id: p.id, name: p.name, kind: 'api_key', connected,
@@ -161,6 +162,8 @@ const phoneCache: { at: number; files: string[] } = { at: 0, files: [] };
 
 /** The .gguf files downloaded in the app, cached for a few seconds. Empty without the app. */
 export async function phoneModels(): Promise<string[]> {
+  // Outside the app: the models this server downloaded, if llama-server is installed.
+  if (!env.inApp) return (phoneCache.files = localEngine() ? installedModels().map((m) => m.file) : []);
   if (!pairing()) return (phoneCache.files = []);
   if (Date.now() - phoneCache.at < 5000) return phoneCache.files;
   phoneCache.at = Date.now();

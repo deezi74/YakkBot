@@ -150,6 +150,8 @@ export const features = () => ({
   devLogin: env.devLogin,
   phone: env.isTermux || env.inApp,
   app: env.inApp,
+  /** The On-device models page: the app's engine, or llama-server on this machine. */
+  models: true,
   telegram: !!env.telegramToken,
 });
 // (Whether the Android app is paired is live state, served by GET /api/device.)

@@ -56,6 +56,8 @@ install_deps() {
       else
         pkg install -y nodejs-lts git openssl-tool termux-api || pkg install -y nodejs git openssl-tool termux-api
       fi
+      # llama.cpp runs GGUF models on the phone (Settings > On-device models). Optional.
+      pkg install -y llama-cpp >/dev/null 2>&1 || warn "Could not install llama-cpp; on-device models need it (pkg install llama-cpp)."
       # Still broken after the upgrade: reinstall Node and the library it links against.
       if have node && ! node -v >/dev/null 2>&1; then
         say "Repairing Node.js"

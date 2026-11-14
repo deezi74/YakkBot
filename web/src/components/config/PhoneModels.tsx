@@ -5,7 +5,7 @@ import { useStore } from '../../store';
 interface CatalogModel { id: string; name: string; maker: string; file: string; bytes: number; minRamGb: number; tag: string; note: string; fits: boolean }
 interface Download { file: string; done: number; total: number; failed: boolean }
 interface Status {
-  engine: boolean; ramGb: number; recommended: string; state: string; running: string; error?: string;
+  engine: boolean; engineHint?: string | null; ramGb: number; recommended: string; state: string; running: string; error?: string;
   catalog: CatalogModel[]; installed: { file: string; bytes: number }[]; downloads: Download[];
 }
 interface HfFile { repo: string; path: string; file: string; bytes: number; url: string }
@@ -19,7 +19,7 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return d as T;
 }
 
-/** Settings > On-phone models: GGUF models that run offline on the phone (the YakkBot app's llama.cpp). */
+/** Settings > On-device models: GGUF models that run offline on this phone or PC (llama.cpp). */
 export function PhoneModels() {
   const bot = useStore((s) => s.bots.find((b) => b.id === s.selectedBotId));
   const [s, setS] = useState<Status | null>(null);
@@ -44,7 +44,7 @@ export function PhoneModels() {
   const use = (file: string) => act(async () => {
     if (!bot) throw new Error('Open a bot first.');
     await configApi.setEngine(bot.id, { provider: 'phone', model: file });
-  }, bot ? `${bot.name} now uses ${file.replace(/\.gguf$/, '')} on this phone. The first reply loads it, which can take a minute.` : undefined);
+  }, bot ? `${bot.name} now uses ${file.replace(/\.gguf$/, '')} on this device. The first reply loads it, which can take a minute.` : undefined);
 
   const search = async () => {
     if (!q.trim()) return;
@@ -58,7 +58,6 @@ export function PhoneModels() {
 
   if (error && !s) return <div className="cfg-empty">{error}</div>;
   if (!s) return <div className="cfg-empty">Loading…</div>;
-  if (!s.engine) return <div className="cfg-empty">This build of the app has no on-phone model engine. Update the YakkBot app.</div>;
 
   const installed = new Set(s.installed.map((m) => m.file));
   const downloading = new Map(s.downloads.map((d) => [d.file, d]));
@@ -75,7 +74,7 @@ export function PhoneModels() {
         </div>
         {have ? (
           <span style={{ display: 'flex', gap: 6 }}>
-            <button type="button" className="cfg-btn cfg-btn--primary" onClick={() => use(file)}>Use</button>
+            <button type="button" className="cfg-btn cfg-btn--primary" onClick={() => use(file)} disabled={!s.engine} title={s.engine ? `Use for ${bot?.name ?? 'this bot'}` : 'Install the model engine first'}>Use</button>
             <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => act(() => call('/delete', { file }))}>Delete</button>
           </span>
         ) : d ? (
@@ -91,15 +90,21 @@ export function PhoneModels() {
   return (
     <>
       <div className="app-settings__head">
-        <h1>On-phone models</h1>
-        <p>Models that run on this phone, offline and free, instead of through an API key. Smaller ones reply faster; larger ones are smarter. This phone has {s.ramGb} GB of memory.</p>
+        <h1>On-device models</h1>
+        <p>AI models that run right here, offline and free, instead of through an API key. Download one, then tap <b>Use</b>. Smaller ones reply faster; larger ones are smarter. This device has {s.ramGb} GB of memory.</p>
       </div>
+      {!s.engine && (
+        <div className="card__error">
+          The model engine (llama.cpp) is not installed yet, so downloaded models can't run.{' '}
+          {s.engineHint ? <>Install it: <code>{s.engineHint}</code>, then restart YakkBot (<code>yakkbot restart</code>).</> : 'Update the YakkBot app.'}
+        </div>
+      )}
       {note && <div className="cfg-field__hint" role="status">{note}</div>}
       {s.state === 'failed' && s.error && <div className="card__error">{s.error.slice(-300)}</div>}
       <section className="cfg-section">
         <div className="cfg-section__label">Suggested</div>
         <div className="cfg-card">
-          {s.catalog.map((m) => row(m.file, `${m.name}${m.id === s.recommended ? ' (best for this phone)' : ''}`, `${m.maker} · ${m.tag}. ${m.note}`, m.bytes, m.fits, () => act(() => call('/download', { id: m.id }), `Downloading ${m.name}. It keeps going with the app closed.`)))}
+          {s.catalog.map((m) => row(m.file, `${m.name}${m.id === s.recommended ? ' (best for this phone)' : ''}`, `${m.maker} · ${m.tag}. ${m.note}`, m.bytes, m.fits, () => act(() => call('/download', { id: m.id }), `Downloading ${m.name}. You can leave this page; it keeps going.`)))}
         </div>
       </section>
       {others.length > 0 && (

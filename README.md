@@ -61,7 +61,7 @@ What the app gives the bots, with your permission (they still ask before each ki
 - **Screen control:** read the screen, tap, swipe and type in any app, open apps, read and clear notifications. This uses Android's accessibility and notification-access services, which you switch on in Android's own settings. On Android 13 and newer, open **App info** for YakkBot, tap **⋮**, choose **Allow restricted settings**, then turn it on.
 - **A Linux computer:** shell, files, Python, Node and git inside the app (`apk add` for more).
 - **A computer screen, like Dots:** open a bot's details and tap **Install** on "Give it a computer" (about 600 MB). The bots get a desktop with Chromium; you watch it live in the chat and can take over the mouse and keyboard.
-- **Models on the phone (offline, no API key):** Settings > **On-phone models** downloads GGUF models (Qwen3.5, Gemma 4, LFM2.5, Nemotron and more, sized to your phone's memory) or any GGUF from Hugging Face, and runs them with llama.cpp. Then pick **On this phone** in a bot's Engine panel.
+- **Models on the phone (offline, no API key):** Settings > **On-device models** downloads GGUF models (Qwen3.5, Gemma 4, LFM2.5, Nemotron and more, sized to your phone's memory) or any GGUF from Hugging Face, and runs them with llama.cpp. Then pick **On this phone** in a bot's Engine panel.
 
 Android stops background apps aggressively: allow YakkBot to run in the background when the app asks. The app restarts your bots after the phone reboots.
 
@@ -126,6 +126,18 @@ Things to try once a model is connected:
 - "Remember that I want answers in two sentences unless I ask for more."
 - Create a second bot called Scout with the label Research, then tell your main bot: "Ask Scout to
   compare the three cheapest ARM64 mini PCs and report back."
+
+### On-device models (GGUF, offline)
+
+Settings > **On-device models** downloads GGUF models (a list sized to your device's memory, or any
+GGUF from Hugging Face) and runs them with llama.cpp, offline and with no API key. Tap **Use** on a
+downloaded model, or pick **On this device** in a bot's Engine panel. The first reply loads it.
+
+- **YakkBot app:** works out of the box.
+- **Termux:** the installer adds `llama-cpp`; if it is missing, run `pkg install llama-cpp` and `yakkbot restart`.
+- **PC:** install llama.cpp so `llama-server` is on the PATH (or set `LLAMA_SERVER=/path/to/llama-server`).
+
+Small models are much weaker than Claude or GPT: good for quick jobs, not long multi-step ones.
 
 ### Telegram
 
