@@ -30,7 +30,7 @@ import type { LibraryFile, Skill } from './types.js';
  */
 export const configApi = new Hono<AuthVars>();
 
-for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*', '/setup/*']) configApi.use(p, requireUser);
+for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*', '/setup/*', '/learning']) configApi.use(p, requireUser);
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
@@ -486,6 +486,14 @@ configApi.post('/setup/:job', (c) => {
 // ---------- the bots' computer: chosen and set up in the app ----------
 // One Orgo cloud computer for the whole team, a screen of its own for each bot (Orgo allows 4),
 // or the desktop in the YakkBot app's own Linux.
+
+/** Bots learning on their own after real work (Settings › AI models). */
+configApi.get('/learning', (c) => c.json({ autoLearn: getAppSettings().autoLearn !== false }));
+configApi.put('/learning', async (c) => {
+  const p = await c.req.json<{ autoLearn?: boolean }>().catch(() => ({} as any));
+  setAppSettings({ autoLearn: p.autoLearn !== false });
+  return c.json({ autoLearn: getAppSettings().autoLearn !== false });
+});
 
 configApi.get('/computer/setup', (c) => {
   const s = getAppSettings();

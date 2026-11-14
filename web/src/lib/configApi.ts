@@ -100,6 +100,8 @@ export const configApi = {
 
   /** Built-in engine: model keys are kept on the device and shared by every bot. */
   setProvider: (id: string, p: { apiKey?: string | null; baseUrl?: string | null; defaultModel?: string | null }) => req<{ providers: EngineProvider[] }>('PUT', `/providers/${id}`, p),
+  learning: () => req<{ autoLearn: boolean }>('GET', '/learning'),
+  setLearning: (autoLearn: boolean) => req<{ autoLearn: boolean }>('PUT', '/learning', { autoLearn }),
   providers: () => req<{ providers: EngineProvider[] }>('GET', '/providers').then((r) => r.providers),
   modelDefaults: () => req<{ provider: string | null; model: string | null; chosen: { provider: string | null; model: string | null } }>('GET', '/providers/defaults'),
   setModelDefaults: (p: { provider: string | null; model: string | null; applyToAll?: boolean }) => req<{ ok: true; provider: string | null; model: string | null }>('PUT', '/providers/defaults', p),

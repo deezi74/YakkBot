@@ -125,7 +125,7 @@ export type CardBody =
 
 export interface EventBody {
   type: 'event';
-  event: 'routine-created' | 'routine-updated' | 'routine-run' | 'task-changed' | 'bot-message' | 'conversation-cleared' | 'computer' | 'voice-call';
+  event: 'routine-created' | 'routine-updated' | 'routine-run' | 'task-changed' | 'bot-message' | 'conversation-cleared' | 'computer' | 'voice-call' | 'learned';
   text: string;
   ref?: string;
   /** voice-call only: the call record (set on the end-of-call row). */

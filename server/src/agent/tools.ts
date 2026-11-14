@@ -4,6 +4,7 @@ import { newId } from '../lib/ids.js';
 import { hub } from '../lib/hub.js';
 import { box } from '../box.js';
 import { env } from '../env.js';
+import { deleteSkill, findSkill, listSkills, saveSkill } from '../skills.js';
 import { addConnection, appendRow, getBotRow, listConnections, listRoutines, removeConnection, toRoutine, describeCron } from '../store.js';
 import { executeComposio, innerToolSlugs, isReadOnlySlug, toolkitInfo } from '../composio.js';
 import { scheduleRoutine, unscheduleRoutine } from '../routines.js';
@@ -233,6 +234,34 @@ export const TOOLS: ToolDef[] = [
       db.prepare('DELETE FROM routines WHERE id=? AND bot_id=?').run(a.routine_id, ctx.botId);
       hub.emit(ctx.userId, { type: 'routines', botId: ctx.botId });
       return { output: 'Deleted.' };
+    },
+  },
+  {
+    name: 'skill',
+    description: 'Your skills: reusable know-how for a kind of task (steps, commands that worked, pitfalls, the user\'s preferences for it). list shows them; view (name) opens one; save (name, description, body) creates one or rewrites the one with that name; delete (name). Save a skill after you work out how to do something you are likely to do again, and improve it when you find a better way or the user corrects you.',
+    parameters: obj({
+      action: { type: 'string', enum: ['list', 'view', 'save', 'delete'] },
+      name: { type: 'string' },
+      description: { type: 'string', description: 'save: one line on when to use it.' },
+      body: { type: 'string', description: 'save: the skill itself, in Markdown: when to use it, the steps, what to watch out for.' },
+    }, ['action']),
+    activity: 'remembering',
+    label: 'Working on a skill',
+    impl: async (a, ctx) => {
+      if (a.action === 'list') {
+        const all = listSkills(ctx.botId);
+        return { output: all.length ? all.map((s) => `- ${s.name}${s.description ? `: ${s.description}` : ''}`).join('\n') : 'No skills yet.' };
+      }
+      if (a.action === 'view') {
+        const s = findSkill(ctx.botId, String(a.name ?? ''));
+        return s ? { output: `# ${s.name}\n${s.description ? `${s.description}\n\n` : ''}${s.body}` } : { output: `No skill named ${a.name}.`, isError: true };
+      }
+      if (a.action === 'delete') return deleteSkill(ctx.userId, ctx.botId, String(a.name ?? '')) ? { output: 'Deleted.' } : { output: `No skill named ${a.name}.`, isError: true };
+      if (a.action === 'save') {
+        try { return { output: saveSkill(ctx.userId, ctx.botId, { name: String(a.name ?? ''), description: a.description, body: String(a.body ?? '') }) ? 'Saved a new skill.' : 'Updated the skill.' }; }
+        catch (e: any) { return { output: String(e?.message ?? e), isError: true }; }
+      }
+      return { output: 'action must be list, view, save or delete.', isError: true };
     },
   },
   {

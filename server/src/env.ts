@@ -69,7 +69,9 @@ const vncPort = Number(str('VNC_PORT', '0'));
 interface AppSettings { computer?: 'none' | 'local' | 'orgo'; orgoKey?: string; orgoComputerId?: string; orgoComputerName?: string; aiProvider?: string; aiModel?: string;
   /** Voice: engine that speaks replies, the voice it uses, and what turns speech into text. */
   tts?: string; ttsVoice?: string; ttsUrl?: string; stt?: string; voiceMode?: 'talk' | 'realtime';
-  autostartVoice?: boolean; autostartFreellmapi?: boolean }
+  autostartVoice?: boolean; autostartFreellmapi?: boolean;
+  /** Bots look back after real work and keep memories and skills (default on). */
+  autoLearn?: boolean }
 const settingsFile = path.join(dataDir, 'settings.json');
 let appSettings: AppSettings = {};
 try { appSettings = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch { /* none yet */ }

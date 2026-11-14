@@ -13,6 +13,8 @@ export const seen = [];
 
 function decide(lastUserText, lastToolOutput) {
   if (lastToolOutput !== null) return { text: `Tool said: ${String(lastToolOutput).split('\n')[0].slice(0, 200)}` };
+  // The bot looking back over its work (automatic learning): keep a fact and a skill.
+  if (lastUserText.startsWith('The work to review:')) return { text: JSON.stringify({ user: ['The user wants to be called Captain.'], memory: [], skill: { name: 'Greeting the user', description: 'How to greet the user', body: 'Always greet the user as Captain, in one short friendly line, then get to the point.' } }) };
   const t = lastUserText.replace(/^\[[^\]]*\]\n/, '');
   let m;
   if ((m = /^run:\s*([\s\S]+)/.exec(t))) return { think: 'I should run that.', call: { name: 'terminal', args: { command: m[1].trim() } } };
