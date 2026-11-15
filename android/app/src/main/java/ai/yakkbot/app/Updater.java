@@ -135,7 +135,7 @@ final class Updater {
                 state = "failed";
                 String msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
                 error = status == PackageInstaller.STATUS_FAILURE_CONFLICT || status == PackageInstaller.STATUS_FAILURE_INCOMPATIBLE
-                        ? "This update is signed differently from the YakkBot on this phone. Uninstall YakkBot once, then install the update; after that, updates keep your data."
+                        ? "This update is signed with YakkBot's permanent key, but the YakkBot on this phone is an older test build. Uninstall YakkBot once and install the update; from then on, updates install over it and keep your data."
                         : status == PackageInstaller.STATUS_FAILURE_ABORTED ? "The update was cancelled." : (msg == null ? "The update did not install." : msg);
             }
         }
