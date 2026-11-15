@@ -1,0 +1,35 @@
+{
+  "/etc/issue.net": "Ubuntu 26.04.1 LTS",
+  "antiFeatures": {},
+  "apksigner": "/usr/local/lib/android/sdk/build-tools/37.0.0/apksigner",
+  "archivePolicy0": [],
+  "commandLine": [
+    "/home/runner/.local/bin/fdroid update",
+    "--pretty"
+  ],
+  "disabled": [],
+  "endTimestamp": 1794753276316,
+  "failedBuilds": {},
+  "jarsigner": "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64/bin/jarsigner",
+  "keytool": "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64/bin/keytool",
+  "needsUpdate": [
+    "ai.yakkbot.app"
+  ],
+  "noPackages": [
+    "ai.yakkbot.app"
+  ],
+  "noUpdateCheck": [
+    "ai.yakkbot.app"
+  ],
+  "stages": {
+    "delete_disabled_builds": 1794753273415,
+    "index.make repo": 1794753273878,
+    "prepare_apps repo": 1794753273877,
+    "process_apks": 1794753273416,
+    "read_added_date_from_all_apks": 1794753273877,
+    "remove_apks": 1794753273876,
+    "scan_repo_files": 1794753273876
+  },
+  "startTimestamp": 1794753273000,
+  "subcommand": "update"
+}

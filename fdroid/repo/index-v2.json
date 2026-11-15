@@ -1,0 +1,158 @@
+{
+  "repo": {
+    "name": {
+      "en-US": "YakkBot"
+    },
+    "description": {
+      "en-US": "YakkBot updates, straight from the YakkBot builds."
+    },
+    "icon": {
+      "en-US": {
+        "name": "/icons/icon.png",
+        "sha256": "e06ab6ea19c6367961e3837179b1dbe5bac8ab5659d13237425aceb0f80ae2bf",
+        "size": 833
+      }
+    },
+    "address": "https://deezi74.github.io/YakkBot/fdroid/repo",
+    "timestamp": 1794753273000,
+    "categories": {
+      "Connectivity": {
+        "name": {
+          "en-US": "Connectivity"
+        }
+      },
+      "System": {
+        "name": {
+          "en-US": "System"
+        }
+      }
+    }
+  },
+  "packages": {
+    "ai.yakkbot.app": {
+      "metadata": {
+        "added": 1794753273000,
+        "categories": [
+          "Connectivity",
+          "System"
+        ],
+        "issueTracker": "https://github.com/deezi74/YakkBot/issues",
+        "lastUpdated": 1794753273000,
+        "license": "MIT",
+        "sourceCode": "https://github.com/deezi74/YakkBot",
+        "webSite": "https://github.com/deezi74/YakkBot",
+        "authorName": "YakkBot",
+        "name": {
+          "en-US": "YakkBot"
+        },
+        "summary": {
+          "en-US": "Your team of AI agents, texting-style, on your phone"
+        },
+        "description": {
+          "en-US": "YakkBot is a team of AI agents you text like friends. Each Bot has its own\nsoul and memory, its own computer you can watch and take over, skills it\nlearns as it works, and it can use your phone, email and GitHub with your OK.\n\nEverything can run free and on the phone: AI models downloaded to the device\n(GGUF), a built-in Linux computer, and the phone's own voice."
+        },
+        "preferredSigner": "9bd6dc5beeed061c9a15d4cc9e70842f49657f43bde7f416a8c23d639b46c6b9"
+      },
+      "versions": {
+        "cd9d200ac761b7092f3894a9db0781ac182ddba31c03a60dbe4faaa3f96e1c72": {
+          "added": 1794753273000,
+          "file": {
+            "name": "/yakkbot-0.8.5.apk",
+            "sha256": "cd9d200ac761b7092f3894a9db0781ac182ddba31c03a60dbe4faaa3f96e1c72",
+            "size": 10151731
+          },
+          "manifest": {
+            "nativecode": [
+              "arm64-v8a"
+            ],
+            "versionName": "0.8.5",
+            "versionCode": 19,
+            "usesSdk": {
+              "minSdkVersion": 26,
+              "targetSdkVersion": 34
+            },
+            "signer": {
+              "sha256": [
+                "9bd6dc5beeed061c9a15d4cc9e70842f49657f43bde7f416a8c23d639b46c6b9"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.SEND_SMS"
+              },
+              {
+                "name": "android.permission.READ_SMS"
+              },
+              {
+                "name": "android.permission.CALL_PHONE"
+              },
+              {
+                "name": "android.permission.READ_CALL_LOG"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.READ_CALENDAR"
+              },
+              {
+                "name": "android.permission.WRITE_CALENDAR"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "com.android.alarm.permission.SET_ALARM"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.RECORD_AUDIO"
+              },
+              {
+                "name": "android.permission.REQUEST_INSTALL_PACKAGES"
+              },
+              {
+                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

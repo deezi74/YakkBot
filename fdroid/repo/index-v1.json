@@ -1,0 +1,153 @@
+{
+  "repo": {
+    "timestamp": 1794753273000,
+    "version": 20002,
+    "name": "YakkBot",
+    "icon": "icon.png",
+    "address": "https://deezi74.github.io/YakkBot/fdroid/repo",
+    "description": "YakkBot updates, straight from the YakkBot builds."
+  },
+  "requests": {
+    "install": [],
+    "uninstall": []
+  },
+  "apps": [
+    {
+      "authorName": "YakkBot",
+      "categories": [
+        "Connectivity",
+        "System"
+      ],
+      "suggestedVersionCode": "19",
+      "description": "YakkBot is a team of AI agents you text like friends. Each Bot has its own\nsoul and memory, its own computer you can watch and take over, skills it\nlearns as it works, and it can use your phone, email and GitHub with your OK.\n\nEverything can run free and on the phone: AI models downloaded to the device\n(GGUF), a built-in Linux computer, and the phone's own voice.",
+      "issueTracker": "https://github.com/deezi74/YakkBot/issues",
+      "license": "MIT",
+      "name": "YakkBot",
+      "sourceCode": "https://github.com/deezi74/YakkBot",
+      "summary": "Your team of AI agents, texting-style, on your phone",
+      "webSite": "https://github.com/deezi74/YakkBot",
+      "added": 1794753273000,
+      "packageName": "ai.yakkbot.app",
+      "lastUpdated": 1794753273000
+    }
+  ],
+  "packages": {
+    "ai.yakkbot.app": [
+      {
+        "added": 1794753273000,
+        "apkName": "yakkbot-0.8.5.apk",
+        "hash": "cd9d200ac761b7092f3894a9db0781ac182ddba31c03a60dbe4faaa3f96e1c72",
+        "hashType": "sha256",
+        "minSdkVersion": 26,
+        "nativecode": [
+          "arm64-v8a"
+        ],
+        "packageName": "ai.yakkbot.app",
+        "sig": "2e81dfe4049c79a695b1c3730a719b30",
+        "signer": "9bd6dc5beeed061c9a15d4cc9e70842f49657f43bde7f416a8c23d639b46c6b9",
+        "size": 10151731,
+        "targetSdkVersion": 34,
+        "uses-permission": [
+          [
+            "android.permission.INTERNET",
+            null
+          ],
+          [
+            "android.permission.ACCESS_NETWORK_STATE",
+            null
+          ],
+          [
+            "android.permission.SEND_SMS",
+            null
+          ],
+          [
+            "android.permission.READ_SMS",
+            null
+          ],
+          [
+            "android.permission.CALL_PHONE",
+            null
+          ],
+          [
+            "android.permission.READ_CALL_LOG",
+            null
+          ],
+          [
+            "android.permission.READ_PHONE_STATE",
+            null
+          ],
+          [
+            "android.permission.READ_CONTACTS",
+            null
+          ],
+          [
+            "android.permission.READ_CALENDAR",
+            null
+          ],
+          [
+            "android.permission.WRITE_CALENDAR",
+            null
+          ],
+          [
+            "android.permission.ACCESS_FINE_LOCATION",
+            null
+          ],
+          [
+            "android.permission.ACCESS_COARSE_LOCATION",
+            null
+          ],
+          [
+            "android.permission.ACCESS_WIFI_STATE",
+            null
+          ],
+          [
+            "android.permission.VIBRATE",
+            null
+          ],
+          [
+            "com.android.alarm.permission.SET_ALARM",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE",
+            null
+          ],
+          [
+            "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+            null
+          ],
+          [
+            "android.permission.POST_NOTIFICATIONS",
+            null
+          ],
+          [
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+            null
+          ],
+          [
+            "android.permission.WAKE_LOCK",
+            null
+          ],
+          [
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+            null
+          ],
+          [
+            "android.permission.RECORD_AUDIO",
+            null
+          ],
+          [
+            "android.permission.REQUEST_INSTALL_PACKAGES",
+            null
+          ],
+          [
+            "android.permission.MODIFY_AUDIO_SETTINGS",
+            null
+          ]
+        ],
+        "versionCode": 19,
+        "versionName": "0.8.5"
+      }
+    ]
+  }
+}
