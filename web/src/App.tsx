@@ -32,6 +32,9 @@ function Shell() {
     st.loadComputer().catch(console.error);
     // Inside the Android app: connect its phone bridge to this server.
     void pairAndroid();
+    // Coming back to the app: the phone service may have restarted (new port); connect to it again.
+    const onResume = () => { void pairAndroid(); };
+    window.addEventListener('yakk:resume', onResume);
     const stop = startEvents();
     // OAuth popups post back here; refresh connection-dependent views and the open transcript.
     const onMsg = (e: MessageEvent) => {
@@ -41,7 +44,7 @@ function Shell() {
       if (s.selectedBotId) s.loadRows(s.selectedBotId).catch(() => {});
     };
     window.addEventListener('message', onMsg);
-    return () => { stop(); window.removeEventListener('message', onMsg); };
+    return () => { stop(); window.removeEventListener('message', onMsg); window.removeEventListener('yakk:resume', onResume); };
   }, []);
 
   // Phones: swipe right to slide in your Bots, conversations, profile and settings; swipe left to go back to the chat.

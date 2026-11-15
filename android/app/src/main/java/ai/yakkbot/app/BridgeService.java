@@ -25,7 +25,7 @@ public class BridgeService extends Service {
     static volatile String state = "stopped";
     static volatile String lastError = null;
 
-    private Bridge bridge;
+    private volatile Bridge bridge;
     private Thread server;
     private volatile boolean running = true;
     private volatile Process process, desktop;
@@ -66,6 +66,9 @@ public class BridgeService extends Service {
         wake.acquire();
         bridge = new Bridge(this);
         new Thread(bridge, "yakk-bridge").start();
+        // The server is told the bridge's port, so wait (briefly) until it has one.
+        for (int i = 0; i < 40 && Bridge.port == 0; i++) sleep(50);
+        watchBridge();
         server = new Thread(this::superviseServer, "yakk-server");
         server.start();
         instance = this;
@@ -128,7 +131,7 @@ public class BridgeService extends Service {
         env.put("HOST", Prefs.lan(c) ? "0.0.0.0" : "127.0.0.1");
         env.put("SESSION_SECRET", linux.secret("session.secret"));
         env.put("YAKK_PASSWORD", linux.secret("passphrase").substring(0, 16));
-        env.put("YAKK_BRIDGE_PORT", String.valueOf(Prefs.BRIDGE_PORT));
+        env.put("YAKK_BRIDGE_PORT", String.valueOf(Bridge.port > 0 ? Bridge.port : Prefs.BRIDGE_PORT));
         env.put("YAKK_BRIDGE_TOKEN", Prefs.token(c));
         env.put("YAKK_OWNER", Prefs.ownerName(c));
         env.put("NODE_OPTIONS", "--max-old-space-size=384");
@@ -153,6 +156,26 @@ public class BridgeService extends Service {
         } catch (Exception e) {
             lastError = "The desktop did not start: " + e.getMessage();
         }
+    }
+
+    /** Checks every 30 seconds that the bridge answers; after two misses in a row it is started again. */
+    private void watchBridge() {
+        Thread t = new Thread(() -> {
+            int misses = 0;
+            while (running) {
+                sleep(30_000);
+                if (!running) return;
+                if (Bridge.answers(this)) { misses = 0; continue; }
+                if (++misses < 2) continue;
+                misses = 0;
+                try { if (bridge != null) bridge.stop(); } catch (Exception ignored) {}
+                Bridge.port = 0;
+                bridge = new Bridge(this);
+                new Thread(bridge, "yakk-bridge").start();
+            }
+        }, "yakk-bridge-watch");
+        t.setDaemon(true);
+        t.start();
     }
 
     /** Keeps the desktop up: started again a few seconds after it stops, until the service ends. */

@@ -372,8 +372,9 @@ function PhoneSection() {
       <section className="cfg-section">
         <div className="cfg-card">
           <Row on={state?.reachable} title={state?.reachable ? 'The app is connected' : state?.paired ? 'The app is not answering' : 'The app is not connected'}
-            sub={state?.reachable ? [info?.device, info?.version && `app ${info.version}`].filter(Boolean).join(' · ') : state?.paired ? 'Open the YakkBot app; Android may have stopped it.' : android ? 'Connecting…' : 'Install the YakkBot app and open it once.'}
-            action={!android ? 'Get the app' : undefined} onAction={() => window.open(APK_URL, '_blank')} />
+            sub={state?.reachable ? [info?.device, info?.version && `app ${info.version}`].filter(Boolean).join(' · ') : state?.paired ? `The phone service is ${info?.bridgeUp === false ? 'not running' : 'not answering'}${info?.bridgeError ? ` (${info.bridgeError})` : ''}. Tap Reconnect; if it stays, close and reopen YakkBot.` : android ? 'Connecting…' : 'Install the YakkBot app and open it once.'}
+            action={!android ? 'Get the app' : !state?.reachable ? 'Reconnect' : undefined}
+            onAction={() => { if (!android) window.open(APK_URL, '_blank'); else void pairAndroid().then(() => setTimeout(() => location.reload(), 600)); }} />
           {(android || state?.paired) && (
             <>
               <Row on={info?.screenControl} title="Screen control" sub={info?.screenControl ? 'Bots can read the screen and tap, swipe and type.' : 'Off. Turn on “YakkBot phone control” in Accessibility settings.'} action={android && !info?.screenControl ? 'Turn on' : undefined} onAction={() => android?.openAccessibilitySettings()} />

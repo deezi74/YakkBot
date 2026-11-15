@@ -38,6 +38,9 @@ final class Bridge implements Runnable {
     private final LocalModels models;
     private volatile ServerSocket server;
     private volatile boolean running = true;
+    /** The port the bridge listens on now (8765, or the next free one), and what last went wrong. */
+    static volatile int port = 0;
+    static volatile String lastError = "";
 
     Bridge(Context ctx) { this.ctx = ctx.getApplicationContext(); this.phone = new PhoneActions(this.ctx); this.models = new LocalModels(this.ctx); }
 
@@ -49,17 +52,46 @@ final class Bridge implements Runnable {
 
     @Override public void run() {
         while (running) {
-            try (ServerSocket s = new ServerSocket(Prefs.BRIDGE_PORT, 16, InetAddress.getByName("127.0.0.1"))) {
-                server = s;
+            ServerSocket s = null;
+            // 8765 normally; if another app holds it, the next free port (the server is told which).
+            for (int p = Prefs.BRIDGE_PORT; p < Prefs.BRIDGE_PORT + 20 && s == null && running; p++) {
+                try { s = new ServerSocket(p, 64, InetAddress.getByName("127.0.0.1")); }
+                catch (Exception e) { lastError = "Port " + p + " is busy: " + e.getMessage(); }
+            }
+            if (s == null) {
+                try { Thread.sleep(3000); } catch (InterruptedException ie) { return; }
+                continue;
+            }
+            try (ServerSocket open = s) {
+                server = open;
+                port = open.getLocalPort();
                 while (running) {
-                    final Socket client = s.accept();
-                    pool.execute(() -> serve(client));
+                    final Socket client = open.accept();
+                    try { pool.execute(() -> serve(client)); }
+                    catch (Exception busy) { try { client.close(); } catch (Exception ignored) {} }
                 }
             } catch (Exception e) {
                 if (!running) return;
-                try { Thread.sleep(3000); } catch (InterruptedException ie) { return; }
+                lastError = String.valueOf(e.getMessage());
+                try { Thread.sleep(1000); } catch (InterruptedException ie) { return; }
             }
         }
+    }
+
+    /** Asks this bridge for its status, the way the YakkBot server does. False when it does not answer. */
+    static boolean answers(Context c) {
+        if (port <= 0) return false;
+        try {
+            java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL("http://127.0.0.1:" + port + "/status").openConnection();
+            h.setConnectTimeout(3000); h.setReadTimeout(5000);
+            h.setRequestMethod("POST"); h.setDoOutput(true);
+            h.setRequestProperty("Authorization", "Bearer " + Prefs.token(c));
+            h.setRequestProperty("Content-Type", "application/json");
+            h.getOutputStream().write("{}".getBytes());
+            boolean ok = h.getResponseCode() == 200;
+            h.disconnect();
+            return ok;
+        } catch (Exception e) { lastError = "Health check: " + e.getMessage(); return false; }
     }
 
     // ---------- HTTP ----------

@@ -333,7 +333,7 @@ public class MainActivity extends Activity {
     private final class Js {
         @JavascriptInterface public String info() {
             try {
-                JSONObject o = Bridge.status(MainActivity.this).put("port", Prefs.BRIDGE_PORT).put("token", Prefs.token(MainActivity.this));
+                JSONObject o = Bridge.status(MainActivity.this).put("port", Bridge.port > 0 ? Bridge.port : Prefs.BRIDGE_PORT).put("token", Prefs.token(MainActivity.this)).put("bridgeUp", Bridge.port > 0).put("bridgeError", Bridge.lastError);
                 o.put("lan", Prefs.lan(MainActivity.this));
                 o.put("server", BridgeService.state);
                 return o.toString();
