@@ -7,6 +7,7 @@ import { requireUser, type AuthVars } from './lib/auth.js';
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { env, getAppSettings, setAppSettings } from './env.js';
+import { PHONE_CTX_CHOICES, autoPhoneCtx, phoneCtx } from './native/phoneCtx.js';
 import { deskApps, installApp, launchApp } from './deskLocal.js';
 import { EMAIL_PRESETS, addEmail, addGithub, listAccounts, removeAccount } from './accounts.js';
 import { resetComposio } from './composio.js';
@@ -35,7 +36,7 @@ import type { LibraryFile, Skill } from './types.js';
  */
 export const configApi = new Hono<AuthVars>();
 
-for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*', '/setup/*', '/learning', '/skill-library', '/accounts', '/accounts/*']) configApi.use(p, requireUser);
+for (const p of ['/bots/*', '/skills/*', '/computer/*', '/providers', '/providers/*', '/device', '/device/*', '/phone-models', '/phone-models/*', '/desktop', '/desktop/*', '/setup/*', '/learning', '/phone-ctx', '/skill-library', '/accounts', '/accounts/*']) configApi.use(p, requireUser);
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
@@ -531,6 +532,13 @@ configApi.post('/bots/:id/skills/library/:skillId', (c) => {
 });
 
 /** Bots learning on their own after real work (Settings › AI models). */
+configApi.get('/phone-ctx', (c) => c.json({ chosen: getAppSettings().phoneCtx ?? 0, auto: autoPhoneCtx(), current: phoneCtx(), choices: PHONE_CTX_CHOICES }));
+configApi.put('/phone-ctx', async (c) => {
+  const p = await c.req.json<{ ctx?: number }>().catch(() => ({} as any));
+  const v = Number(p.ctx) || 0;
+  setAppSettings({ phoneCtx: PHONE_CTX_CHOICES.includes(v) ? v : undefined });
+  return c.json({ chosen: getAppSettings().phoneCtx ?? 0, auto: autoPhoneCtx(), current: phoneCtx(), choices: PHONE_CTX_CHOICES });
+});
 configApi.get('/learning', (c) => c.json({ autoLearn: getAppSettings().autoLearn !== false }));
 configApi.put('/learning', async (c) => {
   const p = await c.req.json<{ autoLearn?: boolean }>().catch(() => ({} as any));

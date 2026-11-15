@@ -186,7 +186,7 @@ final class Bridge implements Runnable {
             case "/models/delete": models.delete(a.getString("file")); return ok;
             case "/models/search": return new JSONObject().put("results", models.search(a.optString("q")));
             case "/models/files": return new JSONObject().put("files", models.files(a.optString("repo")));
-            case "/models/use": models.use(a.getString("file"), Math.max(2048, Math.min(a.optInt("ctx", 8192), 32768))); return ok.put("port", LocalModels.PORT);
+            case "/models/use": models.use(a.getString("file"), Math.max(2048, Math.min(a.optInt("ctx", 16384), 65536))); return ok.put("port", LocalModels.PORT);
             case "/models/stop": models.stop(); return ok;
 
             // ---- the desktop computer in the app's Linux ----

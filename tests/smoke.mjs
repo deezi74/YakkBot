@@ -296,6 +296,11 @@ async function run(wire) {
   await api('DELETE', `/accounts/${ghAdd.accounts.find((x) => x.kind === 'github').id}`);
 
   // The computer's home page and app shelf.
+  const ctxInfo = (await api('GET', '/phone-ctx')).json;
+  check('on-device context starts at 16K or more', ctxInfo.current >= 16384 && ctxInfo.auto >= 16384, JSON.stringify(ctxInfo));
+  check('on-device context can be raised to 32K', (await api('PUT', '/phone-ctx', { ctx: 32768 })).json.current === 32768);
+  check('an odd context size is ignored', (await api('PUT', '/phone-ctx', { ctx: 12345 })).json.chosen === 0);
+
   check('the computer home page needs its token', (await fetch(`${base}/desk/home`)).status === 404);
   const deskT = fs.readFileSync(path.join(home, wire, 'desk.token'), 'utf8').trim();
   const homePage = await (await fetch(`${base}/desk/home?t=${deskT}`)).text();

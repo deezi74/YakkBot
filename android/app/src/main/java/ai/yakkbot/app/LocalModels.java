@@ -47,6 +47,7 @@ final class LocalModels {
     private final File server, log;
     private static Process process;
     private static String runningFile = "";
+    private static volatile int runningCtx = 0;
     private static String state = "stopped", error = null;
 
     LocalModels(Context c) {
@@ -204,7 +205,7 @@ final class LocalModels {
         if (!engineBundled()) throw new IllegalStateException("This build has no on-phone model engine.");
         File f = new File(dir, fileName);
         if (!f.isFile()) throw new IllegalStateException("The model " + fileName + " is not downloaded. Download it in Settings > On-phone models.");
-        if (process != null && process.isAlive() && fileName.equals(runningFile) && healthy()) return;
+        if (process != null && process.isAlive() && fileName.equals(runningFile) && contextSize == runningCtx && healthy()) return;
         stop();
         state = "starting";
         error = null;
@@ -216,6 +217,7 @@ final class LocalModels {
         pb.environment().put("LD_LIBRARY_PATH", ctx.getApplicationInfo().nativeLibraryDir);
         process = pb.start();
         runningFile = fileName;
+        runningCtx = contextSize;
         long deadline = System.currentTimeMillis() + 180_000;
         boolean retried = false;
         while (System.currentTimeMillis() < deadline) {

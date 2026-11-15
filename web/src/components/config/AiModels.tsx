@@ -3,6 +3,7 @@ import type { EngineProvider } from '@shared/types';
 import { configApi } from '../../lib/configApi';
 import { useConfigUI } from '../../configStore';
 import { SetupJobButton } from './SetupJob';
+import { PhoneCtxSetting } from './PhoneCtx';
 
 /**
  * Every way a bot can think, in one place: models on this device (GGUF, free and offline) and API
@@ -102,6 +103,7 @@ export function AiModels() {
               <button type="button" className="cfg-btn cfg-btn--primary" onClick={openModels}>{p.connected ? 'Manage' : 'Download'}</button>
             </div>
           ))}
+          <PhoneCtxSetting />
         </div>
       </section>
 

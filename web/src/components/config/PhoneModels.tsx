@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { configApi } from '../../lib/configApi';
 import { SetupJobButton } from './SetupJob';
+import { PhoneCtxSetting } from './PhoneCtx';
 import { useStore } from '../../store';
 
 interface CatalogModel { id: string; name: string; maker: string; file: string; bytes: number; minRamGb: number; tag: string; note: string; fits: boolean }
@@ -103,6 +104,9 @@ export function PhoneModels() {
       )}
       {note && <div className="cfg-field__hint" role="status">{note}</div>}
       {s.state === 'failed' && s.error && <div className="card__error">{s.error.slice(-300)}</div>}
+      <section className="cfg-section">
+        <div className="cfg-card"><PhoneCtxSetting /></div>
+      </section>
       <section className="cfg-section">
         <div className="cfg-section__label">Suggested</div>
         <div className="cfg-card">

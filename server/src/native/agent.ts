@@ -1,4 +1,5 @@
 import { learnInBackground, shouldLearn } from './learn.js';
+import { phoneCharBudget } from './phoneCtx.js';
 import crypto from 'node:crypto';
 import { db } from '../db.js';
 import { env } from '../env.js';
@@ -199,7 +200,9 @@ export async function* nativeTurn(t: NativeTurn): AsyncGenerator<StreamEvent> {
   if (items.length !== saved.length) { replaceItems(t.botId, gen, items); keepThinking = false; }
 
   // Too long to keep sending: fold everything so far into a summary and carry on from that.
-  if (size(items) > env.contextChars && items.length > 4) {
+  // Models on this device hold far less than cloud ones: condense to fit their context, not the cloud limit.
+  const limit = provider === 'phone' ? Math.min(env.contextChars, phoneCharBudget(system.length + JSON.stringify(box.specs).length)) : env.contextChars;
+  if (size(items) > limit && items.length > 4) {
     yield { type: 'hermes.status', data: { text: 'Condensing the conversation so far' } };
     const summary = await callModel({
       provider, model, effort: 'low', signal: t.signal, keepThinking: false, tools: [],
