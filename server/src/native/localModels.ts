@@ -134,7 +134,7 @@ export function stopModel() {
 
 /** Starts llama-server with this model unless it already runs it, and waits until it answers. */
 export function useModel(file: string, ctx = 12288): Promise<void> {
-  if (running?.file === file && running.proc.exitCode === null && state.state === 'running') return healthy().then((ok) => (ok ? undefined : restart()));
+  if (running?.file === file && (running as any).ctx === ctx && running.proc.exitCode === null && state.state === 'running') return healthy().then((ok) => (ok ? undefined : restart()));
   if (starting) return starting.then(() => useModel(file, ctx));
   const restart = () => { stopModel(); return useModel(file, ctx); };
   starting = (async () => {
@@ -149,7 +149,7 @@ export function useModel(file: string, ctx = 12288): Promise<void> {
     const out = fs.openSync(logFile, 'w');
     const proc = spawn(bin, args, { stdio: ['ignore', out, out] });
     fs.closeSync(out);
-    running = { file, proc };
+    running = { file, proc, ctx } as any;
     let exited = false;
     proc.on('exit', () => { exited = true; if (running?.proc === proc) { running = null; if (state.state === 'running') state = { state: 'stopped' }; } });
     const deadline = Date.now() + 180_000;

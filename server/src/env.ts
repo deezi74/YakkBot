@@ -72,6 +72,8 @@ interface AppSettings { computer?: 'none' | 'local' | 'orgo'; orgoKey?: string; 
   autostartVoice?: boolean; autostartFreellmapi?: boolean;
   /** Bots look back after real work and keep memories and skills (default on). */
   autoLearn?: boolean;
+  /** Context size (tokens) for models on this device; unset = sized from the phone's memory. */
+  phoneCtx?: number;
   composioKey?: string }
 const settingsFile = path.join(dataDir, 'settings.json');
 let appSettings: AppSettings = {};

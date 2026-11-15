@@ -1,3 +1,4 @@
+import { bumpPhoneCtx, phoneCtx } from './phoneCtx.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { providerBaseUrl, providerDef, providerKey } from './providers.js';
 import { bridge, appEngine } from '../device.js';
@@ -205,8 +206,9 @@ async function callOpenAI(req: LlmRequest): Promise<Reply> {
   // A model on the phone: the app loads it first (the first time can take a minute).
   if (def.id === 'phone') {
     req.onDelta({ type: 'reasoning-start' });
-    if (appEngine()) await bridge('/models/use', { file: req.model, ctx: 12288 }, 240_000);
-    else await useModel(req.model, 12288);
+    const ctx = phoneCtx();
+    if (appEngine()) await bridge('/models/use', { file: req.model, ctx }, 240_000);
+    else await useModel(req.model, ctx);
   }
   const base = providerBaseUrl(req.provider);
   if (!base) throw new LlmError(`${def.name} has no address yet. Set it in Settings.`);
@@ -282,5 +284,12 @@ async function callOpenAI(req: LlmRequest): Promise<Reply> {
 export function callModel(req: LlmRequest): Promise<Reply> {
   const def = providerDef(req.provider);
   if (!def) throw new LlmError(`Unknown model provider "${req.provider}".`);
-  return def.wire === 'anthropic' ? callAnthropic(req) : callOpenAI(req);
+  if (def.id !== 'phone') return def.wire === 'anthropic' ? callAnthropic(req) : callOpenAI(req);
+  // A model on this device whose context is too small for this conversation: give it more and try again.
+  return callOpenAI(req).catch((e: unknown) => {
+    const msg = String((e as Error)?.message ?? e);
+    if (!/exceeds the available context size|context size|n_ctx/i.test(msg) || !bumpPhoneCtx()) throw e;
+    req.onDelta({ type: 'reasoning-start' });
+    return callOpenAI(req);
+  });
 }
