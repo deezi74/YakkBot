@@ -76,7 +76,11 @@ public class BridgeService extends Service {
         if (intent != null && ACTION_RESTART.equals(intent.getAction())) {
             // The supervisor starts it again, with the desktop if one was just installed.
             Process p = process;
-            if (p != null) p.destroy();
+            if (p != null) {
+                p.destroy();
+                // Make sure it is gone, so the new server can take the port.
+                new Thread(() -> { try { if (!p.waitFor(4, java.util.concurrent.TimeUnit.SECONDS)) p.destroyForcibly(); } catch (InterruptedException ignored) {} }, "yakk-stop").start();
+            }
         }
         return START_STICKY;
     }

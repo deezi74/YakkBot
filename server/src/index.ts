@@ -38,7 +38,8 @@ app.route('/mcp', mcpApi);
 // The home page of the computer on this device (its browser has no sign-in; a token guards it).
 app.route('/desk', deskApi);
 deskToken();
-if (env.computerMode === 'local') writeBrowserPolicy();
+// Always on the phone: the desktop may be installed while YakkBot runs, and its browser reads this at start.
+if (env.computerMode === 'local' || process.env.YAKK_DESKTOP_BIN) writeBrowserPolicy();
 app.route('/api/checkins', checkinsApi);
 app.route('/api/rooms', roomsApi);
 app.route('/api', api);

@@ -105,7 +105,8 @@ final class Desktop {
     }
 
     static void addServerEnv(Context c, Map<String, String> env) throws java.io.IOException {
-        if (!installed(c)) return;
+        // Always passed: the server switches the computer on by itself once Xvnc is installed, no restart needed.
+        env.put("YAKK_DESKTOP_BIN", "/usr/bin/Xvnc");
         env.put("YAKK_COMPUTER", "local");
         env.put("VNC_HOST", "127.0.0.1");
         env.put("VNC_PORT", String.valueOf(VNC_PORT));

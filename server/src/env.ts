@@ -89,7 +89,18 @@ const orgoComputerIdEnv = str('ORGO_COMPUTER_ID');
 
 export type ComputerMode = 'none' | 'local' | 'orgo';
 /** Which computer the bots use. A choice made in the app wins over the environment. */
+/**
+ * In the phone app the desktop is installed while the server runs: the app always passes the screen's
+ * address and the program that serves it, and the computer counts as there once that program exists.
+ */
+const desktopReady = () => { const bin = process.env.YAKK_DESKTOP_BIN; return !bin || fs.existsSync(bin); };
+
 function computerMode(): ComputerMode {
+  const mode = pickComputerMode();
+  return mode === 'local' && !desktopReady() ? 'none' : mode;
+}
+
+function pickComputerMode(): ComputerMode {
   const chosen = appSettings.computer;
   if (chosen === 'orgo' && appSettings.orgoKey && appSettings.orgoComputerId) return 'orgo';
   if (chosen === 'none') return 'none';
