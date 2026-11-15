@@ -91,6 +91,8 @@ export function freellmapiSetupScript(): string {
     `[ -d ${quote(FREELLMAPI_DIR)}/.git ] || git clone --depth 1 https://github.com/tashfeenahmed/freellmapi ${quote(FREELLMAPI_DIR)}`,
     `cd ${quote(FREELLMAPI_DIR)} && git pull --ff-only || true`,
     `cd ${quote(FREELLMAPI_DIR)} && npm install`,
+    // Build the dashboard once, so http://127.0.0.1:3001 shows it (npm run dev alone serves it on 5173).
+    `cd ${quote(FREELLMAPI_DIR)} && (npm run build -w client || echo "Dashboard build skipped; it is on http://127.0.0.1:5173 while FreeLLMAPI runs.")`,
     `echo "FreeLLMAPI is installed."`,
   ].join('\n');
 }
@@ -111,7 +113,7 @@ export async function startService(name: 'voice' | 'freellmapi'): Promise<{ ok: 
   const log = fs.openSync(path.join(name === 'voice' ? VOICE_DIR : FREELLMAPI_DIR, name === 'voice' ? 'server.log' : 'yakkbot.log'), 'a');
   const cmd = name === 'voice'
     ? `exec "$(command -v python3 || command -v python)" ${quote(path.join(VOICE_DIR, 'server.py'))}`
-    : `cd ${quote(FREELLMAPI_DIR)} && ([ -d node_modules ] || npm install) && exec npm run dev`;
+    : `cd ${quote(FREELLMAPI_DIR)} && ([ -d node_modules ] || npm install) && ([ -f client/dist/index.html ] || npm run build -w client || true) && exec npm run dev`;
   const child = spawn('sh', ['-c', `command -v termux-wake-lock >/dev/null && termux-wake-lock; ${cmd}`], { detached: true, stdio: ['ignore', log, log] });
   child.unref();
   running.set(name, child);

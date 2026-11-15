@@ -217,8 +217,8 @@ Voice** chooses:
 
 **Settings › AI models › Set up FreeLLMAPI here** clones
 [FreeLLMAPI](https://github.com/tashfeenahmed/freellmapi) into `~/freellmapi`, installs it and keeps it
-running on port 3001 (the same place D-Agent uses). Open its dashboard at `http://127.0.0.1:3001`,
-add the free provider keys you have, copy its `freellmapi-…` key into the FreeLLMAPI row, and use the
+running on port 3001 (the same place D-Agent uses). Open its dashboard at `http://127.0.0.1:5173` (or `:3001` after the setup builds it),
+add the free provider keys you have (dashboard: `http://127.0.0.1:5173`, or `:3001` once built), copy its `freellmapi-…` key into the FreeLLMAPI row, and use the
 model `auto`.
 
 ## Local models (GGUF)
