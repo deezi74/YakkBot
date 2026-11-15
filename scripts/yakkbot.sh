@@ -123,7 +123,7 @@ desktop() {
       setenv VNC_PORT 5901; setenv VNC_PASSWORD "$pw"; setenv YAKK_COMPUTER local
       say "Desktop set up. Start it with: yakkbot desktop start   (then: yakkbot restart)"
       ;;
-    start) vncserver -localhost -geometry "${2:-1280x800}" :1 && say "Desktop running on display :1" ;;
+    start) vncserver -localhost -geometry "${2:-1280x800}" -BlacklistThreshold=1000000 :1 && say "Desktop running on display :1" ;;
     stop) vncserver -kill :1 || true ;;
     *) say "usage: yakkbot desktop setup | start [WIDTHxHEIGHT] | stop" ;;
   esac

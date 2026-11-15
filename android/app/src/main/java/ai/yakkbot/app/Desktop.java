@@ -90,7 +90,7 @@ final class Desktop {
                 + "export HOME=/root USER=root XDG_RUNTIME_DIR=/tmp/runtime-root DISPLAY=" + DISPLAY + " NO_AT_BRIDGE=1; "
                 + "( for i in $(seq 1 30); do [ -e /tmp/.X11-unix/X1 ] && break; sleep 1; done; "
                 + "while true; do echo \"[desktop] starting the session\"; dbus-launch --exit-with-session sh -c 'xfwm4 --replace & xfdesktop & while true; do browser --start-maximized --user-data-dir=/root/.config/yakkbot-browser --remote-debugging-port=9222 $(cat /root/.yakkbot/desk.url 2>/dev/null); sleep 2; done'; echo \"[desktop] session ended, starting it again\"; sleep 3; done ) & "
-                + "exec Xvnc " + DISPLAY + " -geometry 1280x800 -depth 24 -rfbport " + VNC_PORT + " -localhost -SecurityTypes VncAuth -PasswordFile /root/.vnc/passwd -AlwaysShared -nolisten tcp";
+                + "exec Xvnc " + DISPLAY + " -geometry 1280x800 -depth 24 -rfbport " + VNC_PORT + " -localhost -SecurityTypes VncAuth -PasswordFile /root/.vnc/passwd -AlwaysShared -nolisten tcp -BlacklistThreshold=1000000";
     }
 
     /** Whether the computer's screen answers right now. */

@@ -41,8 +41,13 @@ function probeVnc(timeoutMs = 1200): Promise<boolean> {
   });
 }
 
+/**
+ * Each check opens a connection that never signs in. TigerVNC counts those as failed logins and, after
+ * five, blocks this device, viewers included; so the desktop is started with a high BlacklistThreshold,
+ * and once the screen is known to be up it is checked only every 30 seconds.
+ */
 async function localAlive(): Promise<boolean> {
-  if (Date.now() - localUp.at < 5000) return localUp.ok;
+  if (Date.now() - localUp.at < (localUp.ok ? 30_000 : 5000)) return localUp.ok;
   localUp = { at: Date.now(), ok: await probeVnc() };
   return localUp.ok;
 }
