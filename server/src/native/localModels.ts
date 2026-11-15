@@ -144,7 +144,8 @@ export function useModel(file: string, ctx = 12288): Promise<void> {
     if (!safeName(file) || !fs.existsSync(model)) throw new Error(`The model ${file} is not downloaded. Download it in Settings > On-device models.`);
     stopModel();
     state = { state: 'starting' };
-    const threads = Math.max(2, Math.min(6, os.cpus().length - 2));
+    // Half the cores: the computer and the rest of the device stay responsive while the model thinks.
+    const threads = Math.max(2, Math.min(4, Math.floor(os.cpus().length / 2)));
     const args = ['-m', model, '--host', '127.0.0.1', '--port', String(LOCAL_PORT), '-c', String(ctx), '-t', String(threads), '--jinja', '-np', '1', '-a', file];
     const out = fs.openSync(logFile, 'w');
     const proc = spawn(bin, args, { stdio: ['ignore', out, out] });
