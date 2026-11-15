@@ -114,8 +114,8 @@ export function AiModels() {
             <div className="cfg-row__text">
               <div className="cfg-row__title">One free endpoint over many free AI tiers</div>
               <div className="cfg-row__sub">
-                Installs FreeLLMAPI on this device (the same one D-Agent starts in Termux, port 3001). Then open its dashboard at{' '}
-                <a href="http://127.0.0.1:3001" target="_blank" rel="noreferrer">127.0.0.1:3001</a>, add the free provider keys you have, copy its <code>freellmapi-…</code> key and paste it under FreeLLMAPI below. Use model <code>auto</code> to let it pick.
+                Installs FreeLLMAPI on this device (the same one D-Agent starts in Termux; its API is on port 3001). Then open its dashboard at{' '}
+                <a href="http://127.0.0.1:5173" target="_blank" rel="noreferrer">127.0.0.1:5173</a> (or <a href="http://127.0.0.1:3001" target="_blank" rel="noreferrer">127.0.0.1:3001</a> once its dashboard is built), add the free provider keys you have, copy its <code>freellmapi-…</code> key and paste it under FreeLLMAPI below. Use model <code>auto</code> to let it pick.
               </div>
             </div>
             <SetupJobButton job="freellmapi" label="Set up FreeLLMAPI here" onDone={load} />
