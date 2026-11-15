@@ -14,7 +14,7 @@
       }
     },
     "address": "https://deezi74.github.io/YakkBot/fdroid/repo",
-    "timestamp": 1794760702000,
+    "timestamp": 1794768398000,
     "categories": {
       "Connectivity": {
         "name": {
@@ -31,13 +31,13 @@
   "packages": {
     "ai.yakkbot.app": {
       "metadata": {
-        "added": 1794760701000,
+        "added": 1794768398000,
         "categories": [
           "Connectivity",
           "System"
         ],
         "issueTracker": "https://github.com/deezi74/YakkBot/issues",
-        "lastUpdated": 1794760702000,
+        "lastUpdated": 1794768398000,
         "license": "MIT",
         "sourceCode": "https://github.com/deezi74/YakkBot",
         "webSite": "https://github.com/deezi74/YakkBot",
@@ -54,8 +54,106 @@
         "preferredSigner": "9bd6dc5beeed061c9a15d4cc9e70842f49657f43bde7f416a8c23d639b46c6b9"
       },
       "versions": {
+        "fec76f17267ba6097816be65f74e51e11a34b813a94b26bf0d120d14549e1b7a": {
+          "added": 1794768398000,
+          "file": {
+            "name": "/yakkbot-0.8.8.apk",
+            "sha256": "fec76f17267ba6097816be65f74e51e11a34b813a94b26bf0d120d14549e1b7a",
+            "size": 10152735
+          },
+          "manifest": {
+            "nativecode": [
+              "arm64-v8a"
+            ],
+            "versionName": "0.8.8",
+            "versionCode": 22,
+            "usesSdk": {
+              "minSdkVersion": 26,
+              "targetSdkVersion": 34
+            },
+            "signer": {
+              "sha256": [
+                "9bd6dc5beeed061c9a15d4cc9e70842f49657f43bde7f416a8c23d639b46c6b9"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "android.permission.SEND_SMS"
+              },
+              {
+                "name": "android.permission.READ_SMS"
+              },
+              {
+                "name": "android.permission.CALL_PHONE"
+              },
+              {
+                "name": "android.permission.READ_CALL_LOG"
+              },
+              {
+                "name": "android.permission.READ_PHONE_STATE"
+              },
+              {
+                "name": "android.permission.READ_CONTACTS"
+              },
+              {
+                "name": "android.permission.READ_CALENDAR"
+              },
+              {
+                "name": "android.permission.WRITE_CALENDAR"
+              },
+              {
+                "name": "android.permission.ACCESS_FINE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_COARSE_LOCATION"
+              },
+              {
+                "name": "android.permission.ACCESS_WIFI_STATE"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "com.android.alarm.permission.SET_ALARM"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.RECORD_AUDIO"
+              },
+              {
+                "name": "android.permission.REQUEST_INSTALL_PACKAGES"
+              },
+              {
+                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
+              }
+            ]
+          }
+        },
         "6ffaf5d4c661a91082355f8244b78c4c047dfcb7267b4c2c77f7fe6c6587507f": {
-          "added": 1794760702000,
+          "added": 1794768398000,
           "file": {
             "name": "/yakkbot-0.8.7.apk",
             "sha256": "6ffaf5d4c661a91082355f8244b78c4c047dfcb7267b4c2c77f7fe6c6587507f",
@@ -153,7 +251,7 @@
           }
         },
         "15bfbc36d2833c4dc04b0f5de97f5b5909cbee2e33ab5dc45137a7c742e8811b": {
-          "added": 1794760702000,
+          "added": 1794768398000,
           "file": {
             "name": "/yakkbot-0.8.6.apk",
             "sha256": "15bfbc36d2833c4dc04b0f5de97f5b5909cbee2e33ab5dc45137a7c742e8811b",
@@ -165,104 +263,6 @@
             ],
             "versionName": "0.8.6",
             "versionCode": 20,
-            "usesSdk": {
-              "minSdkVersion": 26,
-              "targetSdkVersion": 34
-            },
-            "signer": {
-              "sha256": [
-                "9bd6dc5beeed061c9a15d4cc9e70842f49657f43bde7f416a8c23d639b46c6b9"
-              ]
-            },
-            "usesPermission": [
-              {
-                "name": "android.permission.INTERNET"
-              },
-              {
-                "name": "android.permission.ACCESS_NETWORK_STATE"
-              },
-              {
-                "name": "android.permission.SEND_SMS"
-              },
-              {
-                "name": "android.permission.READ_SMS"
-              },
-              {
-                "name": "android.permission.CALL_PHONE"
-              },
-              {
-                "name": "android.permission.READ_CALL_LOG"
-              },
-              {
-                "name": "android.permission.READ_PHONE_STATE"
-              },
-              {
-                "name": "android.permission.READ_CONTACTS"
-              },
-              {
-                "name": "android.permission.READ_CALENDAR"
-              },
-              {
-                "name": "android.permission.WRITE_CALENDAR"
-              },
-              {
-                "name": "android.permission.ACCESS_FINE_LOCATION"
-              },
-              {
-                "name": "android.permission.ACCESS_COARSE_LOCATION"
-              },
-              {
-                "name": "android.permission.ACCESS_WIFI_STATE"
-              },
-              {
-                "name": "android.permission.VIBRATE"
-              },
-              {
-                "name": "com.android.alarm.permission.SET_ALARM"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE"
-              },
-              {
-                "name": "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
-              },
-              {
-                "name": "android.permission.POST_NOTIFICATIONS"
-              },
-              {
-                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
-              },
-              {
-                "name": "android.permission.WAKE_LOCK"
-              },
-              {
-                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
-              },
-              {
-                "name": "android.permission.RECORD_AUDIO"
-              },
-              {
-                "name": "android.permission.REQUEST_INSTALL_PACKAGES"
-              },
-              {
-                "name": "android.permission.MODIFY_AUDIO_SETTINGS"
-              }
-            ]
-          }
-        },
-        "cd9d200ac761b7092f3894a9db0781ac182ddba31c03a60dbe4faaa3f96e1c72": {
-          "added": 1794760701000,
-          "file": {
-            "name": "/yakkbot-0.8.5.apk",
-            "sha256": "cd9d200ac761b7092f3894a9db0781ac182ddba31c03a60dbe4faaa3f96e1c72",
-            "size": 10151731
-          },
-          "manifest": {
-            "nativecode": [
-              "arm64-v8a"
-            ],
-            "versionName": "0.8.5",
-            "versionCode": 19,
             "usesSdk": {
               "minSdkVersion": 26,
               "targetSdkVersion": 34
