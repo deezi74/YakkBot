@@ -58,23 +58,30 @@ jobs:
       - name: Use the signing key, if one is set
         env:
           KEYSTORE: ${{ secrets.YAKK_KEYSTORE_BASE64 }}
+          # One secret holding everything: "<password>:<keystore in base64>" (key alias yakkbot).
+          SIGNING: ${{ secrets.YAKK_SIGNING_KEY }}
         run: |
+          if [ -n "$SIGNING" ]; then
+            PW="${SIGNING%%:*}"; KEYSTORE="${SIGNING#*:}"
+            echo "::add-mask::$PW"
+            { echo "YAKK_KEYSTORE_PASSWORD=$PW"; echo "YAKK_KEY_PASSWORD=$PW"; echo "YAKK_KEY_ALIAS=yakkbot"; } >> "$GITHUB_ENV"
+          fi
           if [ -n "$KEYSTORE" ]; then
-            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/yakk.jks"
+            echo "$KEYSTORE" | tr -d ' \n\r' | base64 -d > "$RUNNER_TEMP/yakk.jks"
             echo "YAKK_KEYSTORE=$RUNNER_TEMP/yakk.jks" >> "$GITHUB_ENV"
           fi
       - name: Build
         working-directory: android
         env:
-          YAKK_KEYSTORE_PASSWORD: ${{ secrets.YAKK_KEYSTORE_PASSWORD }}
-          YAKK_KEY_ALIAS: ${{ secrets.YAKK_KEY_ALIAS }}
-          YAKK_KEY_PASSWORD: ${{ secrets.YAKK_KEY_PASSWORD }}
+          YAKK_KEYSTORE_PASSWORD: ${{ secrets.YAKK_KEYSTORE_PASSWORD || env.YAKK_KEYSTORE_PASSWORD }}
+          YAKK_KEY_ALIAS: ${{ secrets.YAKK_KEY_ALIAS || env.YAKK_KEY_ALIAS }}
+          YAKK_KEY_PASSWORD: ${{ secrets.YAKK_KEY_PASSWORD || env.YAKK_KEY_PASSWORD }}
         run: gradle --no-daemon assembleRelease && cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/yakkbot.apk"
       - name: Check the signing key
         run: |
           # Without the permanent key the build is signed with a throwaway one: it installs fine, but
           # updating to it means uninstalling first, and the F-Droid repository is skipped.
-          if [ -z "$YAKK_KEYSTORE" ]; then echo "::warning::No signing key yet (YAKK_KEYSTORE_BASE64, YAKK_KEYSTORE_PASSWORD, YAKK_KEY_ALIAS, YAKK_KEY_PASSWORD). This build cannot update over another one in place."; fi
+          if [ -z "$YAKK_KEYSTORE" ]; then echo "::warning::No signing key yet (add the YAKK_SIGNING_KEY secret). This build cannot update over another one in place."; fi
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -91,9 +98,9 @@ jobs:
       - name: Update the F-Droid repository
         if: env.YAKK_KEYSTORE != ''
         env:
-          YAKK_KEYSTORE_PASSWORD: ${{ secrets.YAKK_KEYSTORE_PASSWORD }}
-          YAKK_KEY_ALIAS: ${{ secrets.YAKK_KEY_ALIAS }}
-          YAKK_KEY_PASSWORD: ${{ secrets.YAKK_KEY_PASSWORD }}
+          YAKK_KEYSTORE_PASSWORD: ${{ secrets.YAKK_KEYSTORE_PASSWORD || env.YAKK_KEYSTORE_PASSWORD }}
+          YAKK_KEY_ALIAS: ${{ secrets.YAKK_KEY_ALIAS || env.YAKK_KEY_ALIAS }}
+          YAKK_KEY_PASSWORD: ${{ secrets.YAKK_KEY_PASSWORD || env.YAKK_KEY_PASSWORD }}
         run: |
           set -e
           pip install --quiet fdroidserver
