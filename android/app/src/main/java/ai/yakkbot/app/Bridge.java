@@ -32,7 +32,8 @@ import java.util.concurrent.Executors;
  */
 final class Bridge implements Runnable {
     private final Context ctx;
-    private final ExecutorService pool = Executors.newFixedThreadPool(4);
+    // Up to 24 at once: a model loading (minutes) or a long phone action must never hold up the quick ones.
+    private final ExecutorService pool = Executors.newFixedThreadPool(24);
     private final PhoneActions phone;
     private final LocalModels models;
     private volatile ServerSocket server;
