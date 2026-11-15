@@ -18,6 +18,8 @@ interface YakkAndroid {
 export interface AndroidInfo {
   version?: string; device?: string; android?: number;
   screenControl?: boolean; notifications?: boolean; unrestrictedBattery?: boolean;
+  /** The app's phone service (bridge): whether it listens, and what last went wrong. */
+  bridgeUp?: boolean; bridgeError?: string;
   permissions?: Record<string, boolean>; lan?: boolean;
 }
 
