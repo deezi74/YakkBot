@@ -193,7 +193,11 @@ async function relay(client: WebSocket, userId: string, botId: string, mode: 'wa
       await new Promise<void>((res, rej) => { ws.once('open', () => res()); ws.once('error', rej); });
       sendUp = (d) => ws.send(d);
     }
-    const serverInit = await upstreamHandshake(fromUp, sendUp, password);
+    // A busy or stuck screen must not leave the viewer on "waking" forever: give up after 20 seconds.
+    const serverInit = await Promise.race([
+      upstreamHandshake(fromUp, sendUp, password),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error('The screen did not answer in time.')), 20_000)),
+    ]);
     if (env.computerMode === 'local') noteLocalScreenSize(serverInit.readUInt16BE(0), serverInit.readUInt16BE(2));
     await browserHandshake(fromClient, (b) => client.send(b), serverInit);
     // Flush anything that arrived during the handshake, then switch to piping.

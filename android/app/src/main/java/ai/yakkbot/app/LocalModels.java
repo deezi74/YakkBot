@@ -210,8 +210,11 @@ final class LocalModels {
         state = "starting";
         error = null;
         int cores = Runtime.getRuntime().availableProcessors();
-        int threads = Math.max(2, Math.min(6, cores - 2));
-        List<String> cmd = new ArrayList<>(List.of(server.getAbsolutePath(), "-m", f.getAbsolutePath(), "--host", "127.0.0.1", "--port", String.valueOf(PORT),
+        // Half the cores, at low priority: the bots' computer, the app and the phone stay responsive while it thinks.
+        int threads = Math.max(2, Math.min(4, cores / 2));
+        List<String> cmd = new ArrayList<>();
+        if (new File("/system/bin/nice").canExecute()) { cmd.add("/system/bin/nice"); cmd.add("-n"); cmd.add("10"); }
+        cmd.addAll(List.of(server.getAbsolutePath(), "-m", f.getAbsolutePath(), "--host", "127.0.0.1", "--port", String.valueOf(PORT),
                 "-c", String.valueOf(contextSize), "-t", String.valueOf(threads), "--jinja", "--no-webui", "-np", "1", "-a", fileName));
         ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(log);
         pb.environment().put("LD_LIBRARY_PATH", ctx.getApplicationInfo().nativeLibraryDir);
@@ -226,7 +229,9 @@ final class LocalModels {
                 if (!retried && tail.contains("no-webui")) {
                     retried = true;
                     cmd.remove("--no-webui");
-                    process = new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(log).start();
+                    ProcessBuilder again = new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(log);
+                    again.environment().put("LD_LIBRARY_PATH", ctx.getApplicationInfo().nativeLibraryDir);
+                    process = again.start();
                     continue;
                 }
                 state = "failed";

@@ -165,6 +165,14 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
     if (variant === 'panel' && !fullscreen) onExpand?.('control');
     else setMode('control');
   };
+  // The computer is up but its screen did not answer (often: the phone was busy): try again by itself a few times.
+  const autoRetries = useRef(0);
+  useEffect(() => {
+    if (phase === 'live') { autoRetries.current = 0; return; }
+    if (phase !== 'error' || !running || autoRetries.current >= 3) return;
+    const t = setTimeout(() => { autoRetries.current += 1; setAttempt((n) => n + 1); }, 4000);
+    return () => clearTimeout(t);
+  }, [phase, running]);
   const [restarting, setRestarting] = useState(false);
   const [desktopLog, setDesktopLog] = useState('');
   // In the phone app the computer runs on the phone: when its screen does not answer, restart it there.
@@ -237,7 +245,7 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
             <div className="screen__state is-waking" role="status">
               <span className="screen__sweep" aria-hidden />
               <span className="screen__mascot is-bobbing"><BotAvatarFor bot={bot} size={mascot} /></span>
-              <span className="screen__label">Waking {bot.name}’s computer…</span>
+              <span className="screen__label">{running ? `Connecting to ${bot.name}’s screen…` : `Waking ${bot.name}’s computer…`}</span>
             </div>
           )}
           {phase === 'switching' && (
