@@ -22,7 +22,7 @@ import { openTerminal } from './desk.js';
 import path from 'node:path';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
 import { MEMORY_LIMIT, USER_LIMIT, readHomeFile, writeHomeFile, type HomeFile } from './native/home.js';
-import { bridge, BridgeError, bridgeStatus, pair, unpair, appEngine, refreshAppEngine } from './device.js';
+import { bridge, BridgeError, bridgeStatus, pair, unpair, appEngine, refreshAppEngine, pairFromEnv } from './device.js';
 import { forgetPhoneModels } from './native/providers.js';
 import { CATALOG, cancelDownload, deleteModel, hubFiles, localStatus, searchHub, startDownload, stopModel } from './native/localModels.js';
 import { PROVIDERS, defaultModel, defaultProvider, listProviders, removeProviderKey, setProviderKey } from './native/providers.js';
@@ -441,7 +441,13 @@ configApi.delete('/device', (c) => { unpair(); return c.json({ paired: false, re
 const viaApp = async (c: any, path: string, body: Record<string, unknown> = {}, timeoutMs = 30_000) => {
   try {
     return c.json(await bridge(path, body, timeoutMs));
-  } catch (e: any) {
+  } catch (first: any) {
+    // The app may have restarted with a new bridge token: pair again from the start-up settings and retry once.
+    if (/no longer accepts|not connected/.test(String(first?.message))) {
+      pairFromEnv();
+      try { return c.json(await bridge(path, body, timeoutMs)); } catch { /* report the first error */ }
+    }
+    const e = first;
     return c.json({ error: String(e?.message ?? e) }, e instanceof BridgeError ? 409 : 502);
   }
 };

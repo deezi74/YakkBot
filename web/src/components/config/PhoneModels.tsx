@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { configApi } from '../../lib/configApi';
 import { SetupJobButton } from './SetupJob';
 import { PhoneCtxSetting } from './PhoneCtx';
@@ -32,10 +32,16 @@ export function PhoneModels() {
   const [files, setFiles] = useState<HfFile[] | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => call<Status>('').then((d) => { setS(d); setError(null); }).catch((e) => setError(e.message)), []);
+  // One request at a time: a slow answer must not pile up new ones every two seconds.
+  const inFlight = useRef(false);
+  const load = useCallback(() => {
+    if (inFlight.current) return Promise.resolve();
+    inFlight.current = true;
+    return call<Status>('').then((d) => { setS(d); setError(null); }).catch((e) => setError(e.message)).finally(() => { inFlight.current = false; });
+  }, []);
   useEffect(() => {
     load();
-    const t = setInterval(load, 2000);
+    const t = setInterval(load, 2500);
     return () => clearInterval(t);
   }, [load]);
 
@@ -59,7 +65,13 @@ export function PhoneModels() {
   };
 
   if (error && !s) return <div className="cfg-empty">{error}</div>;
-  if (!s) return <div className="cfg-empty">Loading…</div>;
+  // Never a silent spinner: say what is wrong and offer to try again.
+  if (!s) return error ? (
+    <div className="cfg-empty">
+      <div className="card__error">The on-device models could not load: {error}</div>
+      <button type="button" className="cfg-btn cfg-btn--primary" style={{ marginTop: 12 }} onClick={() => { setError(null); load(); }}>Try again</button>
+    </div>
+  ) : <div className="cfg-empty">Loading…</div>;
 
   const installed = new Set(s.installed.map((m) => m.file));
   const downloading = new Map(s.downloads.map((d) => [d.file, d]));
