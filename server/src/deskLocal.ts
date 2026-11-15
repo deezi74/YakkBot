@@ -122,6 +122,8 @@ function ensureEmojiFont() {
 }
 
 export function writeBrowserPolicy() {
+  // Only on the phone (the app's Linux, or Termux): elsewhere the system's browser settings are not ours to change.
+  if (process.env.YAKK_PLATFORM !== 'android-app' && !env.isTermux) { try { fs.writeFileSync(path.join(dataDir, 'desk.url'), deskHomeUrl() + '\n', { mode: 0o600 }); } catch { /* fine */ } return; }
   ensureEmojiFont();
   const url = deskHomeUrl();
   const policy = JSON.stringify({ HomepageLocation: url, HomepageIsNewTabPage: false, NewTabPageLocation: url, ShowHomeButton: true, RestoreOnStartup: 4, RestoreOnStartupURLs: [url], BrowserSignin: 0, PromotionalTabsEnabled: false, DefaultBrowserSettingEnabled: false }, null, 2);
