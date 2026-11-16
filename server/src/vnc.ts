@@ -139,7 +139,16 @@ export function attachVncRelay(server: Server) {
   });
 }
 
+/** The last viewer connections, step by step, for Settings and the screen's Details (what got stuck). */
+export const relayLog: { at: number; step: string; ms: number; error?: string }[] = [];
+function note(step: string, t0: number, error?: string) {
+  relayLog.push({ at: Date.now(), step, ms: Date.now() - t0, ...(error ? { error } : {}) });
+  if (relayLog.length > 30) relayLog.splice(0, relayLog.length - 30);
+}
+
 async function relay(client: WebSocket, userId: string, botId: string, mode: 'watch' | 'control') {
+  const t0 = Date.now();
+  note('viewer connected', t0);
   const fromClient = new ByteQueue();
   const fromUp = new ByteQueue();
   let upstream: WebSocket | null = null;
@@ -194,13 +203,16 @@ async function relay(client: WebSocket, userId: string, botId: string, mode: 'wa
       sendUp = (d) => ws.send(d);
     }
     // A busy or stuck screen must not leave the viewer on "waking" forever: give up after 20 seconds.
+    note('screen reached', t0);
     const serverInit = await Promise.race([
       upstreamHandshake(fromUp, sendUp, password),
       new Promise<never>((_, rej) => setTimeout(() => rej(new Error('The screen did not answer in time.')), 20_000)),
     ]);
     if (env.computerMode === 'local') noteLocalScreenSize(serverInit.readUInt16BE(0), serverInit.readUInt16BE(2));
+    note('screen answered', t0);
     await browserHandshake(fromClient, (b) => client.send(b), serverInit);
     // Flush anything that arrived during the handshake, then switch to piping.
+    note('live', t0);
     piping = true;
     const leftoverUp = fromUp.takeAll();
     if (leftoverUp.length) client.send(leftoverUp);
@@ -211,6 +223,7 @@ async function relay(client: WebSocket, userId: string, botId: string, mode: 'wa
     }
   } catch (e: any) {
     console.warn('[vnc] relay failed', e?.message ?? e);
+    note('failed', t0, String(e?.message ?? e));
     closeAll(1011, String(e?.message ?? e));
   }
 }

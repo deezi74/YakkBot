@@ -248,6 +248,7 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
               <span className="screen__label">{running ? `Connecting to ${bot.name}’s screen…` : `Waking ${bot.name}’s computer…`}</span>
             </div>
           )}
+          {running && (phase === 'waking' || phase === 'switching' || phase === 'error') && <ScreenDetails />}
           {phase === 'switching' && (
             <div className="screen__state" role="status">
               <span className="screen__text">One moment…</span>
@@ -442,6 +443,35 @@ function Dock({ onNote }: { onNote: (t: string | null) => void }) {
           <span style={{ background: '#FFFFFF' }}>▦</span>
         </button>
       </div>
+    </div>
+  );
+}
+
+/** What the connection is doing, step by step, so a screen that will not open can be diagnosed from a screenshot. */
+function ScreenDetails() {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('Checking…');
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    const load = () => fetch('/api/computer/diagnose', { credentials: 'include' }).then((r) => r.json()).then((d) => {
+      if (!alive) return;
+      const lines = [
+        `Screen ${d.screen}: ${d.screenAnswer}`,
+        ...(d.attempts ?? []).map((a: { step: string; ms: number; ago: number; error?: string }) => `${a.ago}s ago · ${a.step} after ${a.ms}ms${a.error ? ` · ${a.error}` : ''}`),
+        d.desktop ? `Desktop: ${d.desktop.error ?? `${d.desktop.state ?? ''}${d.desktop.running === false ? ', screen not running' : ''}`}` : '',
+        ...String(d.desktop?.log ?? '').trim().split('\n').slice(-6),
+      ].filter(Boolean);
+      setText(lines.join('\n'));
+    }).catch((e) => alive && setText(String(e)));
+    load();
+    const t = setInterval(load, 4000);
+    return () => { alive = false; clearInterval(t); };
+  }, [open]);
+  return (
+    <div className="screen__details">
+      <button type="button" className="screen__details-btn" onClick={() => setOpen(!open)}>{open ? 'Hide details' : 'Details'}</button>
+      {open && <pre className="screen__details-text">{text}</pre>}
     </div>
   );
 }

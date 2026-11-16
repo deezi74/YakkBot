@@ -35,7 +35,7 @@ final class Desktop {
             if ("ready".equals(s)) {
                 boolean up = running();
                 o.put("running", up);
-                if (!up) o.put("log", logTail(c));
+                o.put("log", logTail(c));
             }
             return o;
         } catch (Exception e) { return new JSONObject(); }
