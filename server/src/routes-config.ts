@@ -13,6 +13,8 @@ import { EMAIL_PRESETS, addEmail, addGithub, listAccounts, removeAccount } from 
 import { resetComposio } from './composio.js';
 import { SKILL_LIBRARY, librarySkill } from './skillLibrary.js';
 import { saveSkill } from './skills.js';
+import net from 'node:net';
+import { relayLog } from './vnc.js';
 import { jobStatus, startJob, type JobId } from './setupJobs.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
 import { computerState, readyScreen, resetBotScreen } from './computer.js';
@@ -482,6 +484,26 @@ configApi.post('/phone-models/:action', async (c) => {
 configApi.get('/desktop', (c) => viaApp(c, '/desktop/status'));
 configApi.post('/desktop/install', (c) => viaApp(c, '/desktop/install'));
 configApi.post('/desktop/restart', (c) => viaApp(c, '/desktop/restart'));
+
+/** What happens when the screen is opened, step by step: for the "Details" on a screen that will not connect. */
+configApi.get('/computer/diagnose', async (c) => {
+  const banner = await new Promise<string>((resolve) => {
+    const t0 = Date.now();
+    const s = net.connect({ host: env.vncHost, port: env.vncPort });
+    let got = '';
+    const done = (r: string) => { s.destroy(); resolve(r); };
+    s.setTimeout(5000, () => done(`no answer after 5s${got ? ` (got "${got.trim()}")` : ''}`));
+    s.on('data', (d) => { got += d.toString('latin1'); if (got.length >= 12) done(`answered "${got.slice(0, 12).trim()}" in ${Date.now() - t0}ms`); });
+    s.on('error', (e) => done(`cannot connect: ${e.message}`));
+  });
+  let desktop: any = null;
+  if (env.inApp) { try { desktop = await bridge('/desktop/status', {}, 5000); } catch (e: any) { desktop = { error: String(e?.message ?? e) }; } }
+  return c.json({
+    mode: env.computerMode, screen: `${env.vncHost}:${env.vncPort}`, screenAnswer: banner,
+    attempts: relayLog.slice(-8).map((r) => ({ ...r, ago: Math.round((Date.now() - r.at) / 1000) })),
+    desktop,
+  });
+});
 
 // One-tap setup for YakkBot in Termux or on Linux (the app does its own through the bridge).
 const JOB_IDS = new Set(['engine', 'desktop', 'voice', 'freellmapi']);
