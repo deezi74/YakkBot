@@ -15,7 +15,7 @@ import { AiModels } from './AiModels';
 import { VoicePage } from './VoicePage';
 import { AccountsPage } from './AccountsPage';
 import { UpdateCard } from '../UpdateCard';
-import { android, androidInfo, pairAndroid, type AndroidInfo } from '../../lib/android';
+import { android, androidInfo, assistantInfo, pairAndroid, type AndroidInfo, type AssistantInfo } from '../../lib/android';
 import { ConfirmButton } from './ui';
 import { ComputerSetupCard } from './ComputerSetup';
 
@@ -339,6 +339,48 @@ function PcAccess({ lan }: { lan: boolean }) {
   );
 }
 
+/** Pick YakkBot as the phone's digital assistant: the assist gesture opens a voice conversation. */
+function PhoneAssistant() {
+  const [a, setA] = useState<AssistantInfo | null>(() => assistantInfo());
+  useEffect(() => {
+    // The assistant is picked in Android's settings, so read it again when the person comes back.
+    const onShow = () => { if (document.visibilityState === 'visible') setA(assistantInfo()); };
+    document.addEventListener('visibilitychange', onShow);
+    const t = setInterval(() => setA(assistantInfo()), 2000);
+    return () => { document.removeEventListener('visibilitychange', onShow); clearInterval(t); };
+  }, []);
+  const on = !!a?.enabled;
+  const sub = !on ? 'Off. YakkBot isn’t offered as the phone’s assistant.'
+    : a?.isDefault ? 'On. Long-press the power or home button (or swipe up from a bottom corner) to talk to your bot.'
+    : a?.isDefault === false ? 'On, but not picked yet. Tap Pick, open Digital assistant app, and choose YakkBot.'
+    : 'On. Tap Pick, open Digital assistant app (or Assist app), and choose YakkBot.';
+  return (
+    <section className="cfg-section">
+      <div className="cfg-section__label">Phone assistant</div>
+      <div className="cfg-card">
+        <div className="cfg-row">
+          <span className={`computer-status-dot is-${on && a?.isDefault ? 'on' : 'off'}`} aria-hidden />
+          <div className="cfg-row__text">
+            <div className="cfg-row__title">Use as the phone’s assistant</div>
+            <div className="cfg-row__sub">{sub}</div>
+          </div>
+          <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => { const next = !on; android?.setAssistant?.(next); setTimeout(() => setA(assistantInfo()), 300); }}>{on ? 'Turn off' : 'Turn on'}</button>
+        </div>
+        {on && (
+          <div className="cfg-row">
+            <div className="cfg-row__text">
+              <div className="cfg-row__title">{a?.isDefault ? 'Change the phone’s assistant' : 'Pick the phone’s assistant'}</div>
+              <div className="cfg-row__sub">Android lets you choose it in Settings › Apps › Default apps › Digital assistant app.</div>
+            </div>
+            <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => android?.openAssistantSettings?.()}>Pick</button>
+          </div>
+        )}
+      </div>
+      <div className="cfg-field__hint">The assist gesture opens a voice conversation with the bot you have open (or your main bot), using the voice chosen in Settings › Voice. Turning this off takes YakkBot out of the phone’s assistant list.</div>
+    </section>
+  );
+}
+
 /** The Android app's bridge: what the bots may do on the phone itself, and the switches for it. */
 function PhoneSection() {
   const [state, setState] = useState<{ paired: boolean; reachable: boolean } | null>(null);
@@ -390,6 +432,7 @@ function PhoneSection() {
         </div>
         <div className="cfg-field__hint">Bots still ask you before they text, call, read your messages or touch the screen. What you said “Always allow” to is listed under Permissions, where you can take it back.</div>
       </section>
+      {android?.assistantInfo && <PhoneAssistant />}
       {android?.setLan && <PcAccess lan={!!info?.lan} />}
     </>
   );

@@ -213,6 +213,13 @@ Voice** chooses:
   Whisper or Grok.
 - With a Grok key, the voice button can instead start a Grok realtime call.
 
+**Phone assistant (Android app).** Pick YakkBot as the phone's digital assistant (Settings › Apps ›
+Default apps › Digital assistant app). Long-press the power or home button, swipe up from a bottom
+corner, or press a headset's voice button, and YakkBot opens straight into a voice conversation with
+the bot you have open (or your main bot). **Settings › Phone control › Phone assistant** turns this on
+and off; off takes YakkBot out of the phone's assistant list. It doesn't replace the phone's speech
+recognizer, so talk mode keeps using it.
+
 ## FreeLLMAPI
 
 **Settings › AI models › Set up FreeLLMAPI here** clones
