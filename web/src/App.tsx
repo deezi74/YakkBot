@@ -15,6 +15,7 @@ import { ConfigLayer } from './components/config/ConfigLayer';
 import { TasksView } from './components/config/TasksView';
 import { useConfigUI } from './configStore';
 import { pairAndroid } from './lib/android';
+import { watchAssist } from './lib/assist';
 
 function Shell() {
   const detailsOpen = useStore((s) => s.detailsOpen);
@@ -36,6 +37,8 @@ function Shell() {
     const onResume = () => { void pairAndroid(); };
     window.addEventListener('yakk:resume', onResume);
     const stop = startEvents();
+    // The phone's assist gesture (YakkBot picked as the digital assistant): start a voice conversation.
+    const stopAssist = watchAssist();
     // OAuth popups post back here; refresh connection-dependent views and the open transcript.
     const onMsg = (e: MessageEvent) => {
       if ((e.data as { type?: string })?.type !== 'yakkbot-connected') return;
@@ -44,7 +47,7 @@ function Shell() {
       if (s.selectedBotId) s.loadRows(s.selectedBotId).catch(() => {});
     };
     window.addEventListener('message', onMsg);
-    return () => { stop(); window.removeEventListener('message', onMsg); window.removeEventListener('yakk:resume', onResume); };
+    return () => { stop(); stopAssist(); window.removeEventListener('message', onMsg); window.removeEventListener('yakk:resume', onResume); };
   }, []);
 
   // Phones: swipe right to slide in your Bots, conversations, profile and settings; swipe left to go back to the chat.

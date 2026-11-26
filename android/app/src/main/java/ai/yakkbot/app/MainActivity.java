@@ -68,6 +68,8 @@ public class MainActivity extends Activity {
     private TextView status, detail;
     private boolean showingWeb = false, installing = false, signingIn = false;
     private PermissionRequest pendingMic;
+    /** Set when the assist gesture opened the app; the page takes it (takeAssist) and starts talking. */
+    private volatile boolean pendingAssist = false;
     private final Runnable poll = this::checkServer;
 
     @Override protected void onCreate(Bundle state) {
@@ -92,12 +94,21 @@ public class MainActivity extends Activity {
 
         BridgeService.start(this);
         handleAsk(getIntent());
+        if (state == null) handleAssist(getIntent());
     }
 
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
         handleAsk(intent);
+        handleAssist(intent);
+    }
+
+    /** The assist gesture: tell the page to start a voice conversation (now, or once it has loaded). */
+    private void handleAssist(Intent i) {
+        if (!Assistant.isAssistLaunch(i) || !Assistant.enabled(this)) return;
+        pendingAssist = true;
+        if (showingWeb) web.evaluateJavascript("window.dispatchEvent(new Event('yakk:assist'))", null);
     }
 
     @Override protected void onResume() {
@@ -376,6 +387,25 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void restartServer() { ui.post(() -> { BridgeService.restartServer(MainActivity.this); toast("Restarting YakkBot…"); }); }
         @JavascriptInterface public void setLan(boolean on) {
             ui.post(() -> { Prefs.setLan(MainActivity.this, on); BridgeService.restartServer(MainActivity.this); toast(on ? "Opening YakkBot to your Wi-Fi…" : "YakkBot is on this phone only."); });
+        }
+        /** Phone assistant (see Assistant): on/off, whether it's the phone's assistant, and the picker. */
+        @JavascriptInterface public String assistantInfo() { return Assistant.info(MainActivity.this); }
+        @JavascriptInterface public void setAssistant(boolean on) {
+            ui.post(() -> {
+                try {
+                    Assistant.setEnabled(MainActivity.this, on);
+                    toast(on ? "YakkBot can be picked as the phone's assistant." : "Assistant mode is off.");
+                } catch (Exception e) { toast("Couldn't change it: " + e.getMessage()); }
+            });
+        }
+        @JavascriptInterface public void openAssistantSettings() {
+            ui.post(() -> { if (!Assistant.openPicker(MainActivity.this)) toast("Open Settings › Apps › Default apps › Digital assistant app."); });
+        }
+        /** True once after the assist gesture opened the app. */
+        @JavascriptInterface public boolean takeAssist() {
+            boolean was = pendingAssist;
+            pendingAssist = false;
+            return was;
         }
         /** For signing in from a PC on the same Wi-Fi. */
         @JavascriptInterface public String passphrase() {

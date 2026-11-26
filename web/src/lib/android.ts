@@ -13,6 +13,12 @@ interface YakkAndroid {
   grant?(group: string): void;
   setLan?(on: boolean): void;
   passphrase?(): string;
+  /** Phone assistant: JSON {enabled, isDefault?}; isDefault is missing before Android 10. */
+  assistantInfo?(): string;
+  setAssistant?(on: boolean): void;
+  openAssistantSettings?(): void;
+  /** True once after the assist gesture opened the app (see lib/assist.ts). */
+  takeAssist?(): boolean;
 }
 
 export interface AndroidInfo {
@@ -24,6 +30,13 @@ export interface AndroidInfo {
 }
 
 export const android: YakkAndroid | undefined = (window as unknown as { YakkAndroid?: YakkAndroid }).YakkAndroid;
+
+export interface AssistantInfo { enabled?: boolean; isDefault?: boolean }
+
+export function assistantInfo(): AssistantInfo | null {
+  if (!android?.assistantInfo) return null;
+  try { return JSON.parse(android.assistantInfo()); } catch { return null; }
+}
 
 export function androidInfo(): (AndroidInfo & { port?: number; token?: string }) | null {
   if (!android) return null;

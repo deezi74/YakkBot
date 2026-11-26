@@ -76,6 +76,26 @@
             </intent-filter>
         </activity>
 
+        <!-- Phone assistant: lets YakkBot be picked as the digital assistant app. The assist gesture
+             (long-press power/home, corner swipe) and a headset's voice button open it straight into
+             a voice conversation. Settings › Phone control › Phone assistant turns this alias off and
+             on (see Assistant.java). -->
+        <activity-alias
+            android:name=".AssistantEntry"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:enabled="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Runs the YakkBot server in the app's own Linux, and the phone bridge (127.0.0.1 only, with a token). -->
         <service
             android:name=".BridgeService"
